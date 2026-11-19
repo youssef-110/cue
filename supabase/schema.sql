@@ -81,14 +81,15 @@ begin
     raise exception 'docs: ownership fields are immutable';
   end if;
   -- other people may only add or remove their own like on a comment
+  -- (multiset diff, so duplicates or a second copy of your own id are rejected)
   if new.kind = 'update' and old.data ->> 'authorId' is distinct from auth.uid()::text then
     if (new.data - 'likes') is distinct from (old.data - 'likes') or new.deleted is distinct from old.deleted then
       raise exception 'docs: only the author can edit a comment';
     end if;
     select coalesce(array_agg(x), '{}') into changed from (
-      (select jsonb_array_elements_text(coalesce(new.data -> 'likes', '[]')) except select jsonb_array_elements_text(coalesce(old.data -> 'likes', '[]')))
-      union
-      (select jsonb_array_elements_text(coalesce(old.data -> 'likes', '[]')) except select jsonb_array_elements_text(coalesce(new.data -> 'likes', '[]')))
+      (select jsonb_array_elements_text(coalesce(new.data -> 'likes', '[]')) except all select jsonb_array_elements_text(coalesce(old.data -> 'likes', '[]')))
+      union all
+      (select jsonb_array_elements_text(coalesce(old.data -> 'likes', '[]')) except all select jsonb_array_elements_text(coalesce(new.data -> 'likes', '[]')))
     ) d(x);
     if changed <> '{}' and changed <> array[auth.uid()::text] then
       raise exception 'docs: you can only change your own like';
