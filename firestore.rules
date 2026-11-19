@@ -104,7 +104,9 @@ service cloud.firestore {
       // created public, by you; createdBy (who may change access) never changes afterwards
       allow create: if canEdit() && idMatches(id) && request.resource.data.readers == ['*'] && request.resource.data.createdBy == uid();
       allow update: if canEdit() && keepsOwnership() && canSee(resource.data) && keeps('readers');
-      allow delete: if canEdit() && canSee(resource.data);
+      // deleting for good (and so freeing the id to be re-created) is for the creator or an admin;
+      // everyone else uses the trash, which is an update
+      allow delete: if canEdit() && canSee(resource.data) && (isAdmin() || resource.data.get('createdBy', null) == uid());
     }
     match /item/{id} {
       allow create: if canEdit() && idMatches(id) && stampedLikeBoard() && canSee(request.resource.data);

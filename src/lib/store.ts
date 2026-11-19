@@ -252,8 +252,11 @@ export function deleteBoard(id: string) {
   toast(`Moved “${b.name}” to trash`, { action: { label: 'Undo', onClick: () => restoreBoard(id) } })
 }
 export const restoreBoard = (id: string) => updateBoard(id, CLEARED)
+/** Only a board's creator or an admin may delete it for good (enforced by the rules too). */
+export const canPurgeBoard = (b?: Board) => !!b && (get().isAdmin || (!!b.createdBy && b.createdBy === get().meId))
 export function deleteBoardForever(id: string) {
   const s = get()
+  if (!canPurgeBoard(s.board[id])) return void toast.error('Only the person who made this board, or an admin, can delete it for good', { id: 'purge' })
   Object.values(s.item).filter((i) => i.boardId === id).forEach((i) => remove('item', i.id))
   Object.values(s.update).filter((u) => u.boardId === id).forEach((u) => remove('update', u.id))
   Object.values(s.doc).filter((d) => d.boardId === id).forEach((d) => remove('doc', d.id))
@@ -493,7 +496,7 @@ export function emptyTrash(onlyExpired = false) {
   const cutoff = onlyExpired ? Date.now() - TRASH_DAYS * 864e5 : Infinity
   const old = (x: Flags) => !!x.deletedAt && x.deletedAt < cutoff
   const s = get()
-  Object.values(s.board).filter(old).forEach((b) => deleteBoardForever(b.id))
+  Object.values(s.board).filter((b) => old(b) && canPurgeBoard(b)).forEach((b) => deleteBoardForever(b.id))
   Object.values(get().board).forEach((b) => b.groups.filter(old).forEach((g) => deleteGroupForever(b.id, g.id)))
   hardDeleteItems(Object.values(get().item).filter(old).map((i) => i.id))
 }

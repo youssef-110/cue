@@ -144,4 +144,8 @@ test('private boards: only their readers (and admins) see or touch them', async 
   await assertFails(updateDoc(doc(bo(), 'board/new'), { createdBy: 'ada' }))
   await assertSucceeds(updateDoc(doc(bo(), 'board/bp'), { name: 'Still secret' }))
   await assertFails(updateDoc(doc(vi(), 'board/bp'), { name: 'x' }))
+  // only the creator or an admin deletes a board for good, so nobody can delete and re-create it as theirs
+  await assertFails(deleteDoc(doc(bo(), 'board/b1')))
+  await assertSucceeds(deleteDoc(doc(bo(), 'board/new')))
+  await assertSucceeds(deleteDoc(doc(ada(), 'board/b1')))
 })
