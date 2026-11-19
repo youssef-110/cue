@@ -8,6 +8,7 @@ import type { Board, CellValue, Column, Item, View } from '../lib/types'
 import { Cell } from '../components/cells'
 import { Avatar, Button, cx } from '../components/ui'
 import { countryName } from '../components/cellsMore'
+import { isHttpUrl } from '../components/cellsExtra'
 import { EmptyView } from './KanbanView'
 
 type Props = { board: Board; items: Item[]; view: View }
@@ -244,9 +245,15 @@ export function FilesView({ board, items }: Props) {
             {rows.map(({ key, f, it, col }) => (
               <tr key={key} className="border-b border-line last:border-0 hover:bg-hover">
                 <td className="px-3 py-2">
-                  <a href={f.url} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-2 font-medium text-accent hover:underline">
-                    <Paperclip className="size-3.5 shrink-0" /> {f.name} <ExternalLink className="size-3 opacity-60" />
-                  </a>
+                  {isHttpUrl(f.url) ? (
+                    <a href={f.url} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-2 font-medium text-accent hover:underline">
+                      <Paperclip className="size-3.5 shrink-0" /> {f.name} <ExternalLink className="size-3 opacity-60" />
+                    </a>
+                  ) : (
+                    <span className="inline-flex items-center gap-2 text-muted" title="Not a web link, so it is not clickable">
+                      <Paperclip className="size-3.5 shrink-0" /> {f.name}
+                    </span>
+                  )}
                 </td>
                 <td className="px-3 py-2">
                   <button onClick={() => openItem(it.id)} className="truncate text-left hover:underline">

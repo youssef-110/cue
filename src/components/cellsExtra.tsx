@@ -269,7 +269,7 @@ export function MirrorCell({ board, col, item }: P) {
 
 // ---------- files (links only) ----------
 type FileLink = { name: string; url: string }
-const isHttpUrl = (s: string) => {
+export const isHttpUrl = (s: string) => {
   try {
     return /^https?:$/.test(new URL(s.trim()).protocol)
   } catch {

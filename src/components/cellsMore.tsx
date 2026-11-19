@@ -180,8 +180,10 @@ export function WorldClockCell({ col, item }: P) {
 }
 
 // ---------- colour ----------
+const HEX = /^#[0-9a-f]{6}$/i
 export function ColorCell({ col, item }: P) {
-  const v = (item.values[col.id] as string | undefined) ?? ''
+  const raw = (item.values[col.id] as string | undefined) ?? ''
+  const v = HEX.test(raw) ? raw : '' // values sync from other clients: only ever paint a plain hex colour
   const editable = useCanEdit()
   return (
     <label className={cx('flex h-full w-full items-center gap-2 px-3', editable && 'cursor-pointer hover:bg-hover')}>
