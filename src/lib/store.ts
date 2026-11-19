@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { toast } from 'sonner'
-import { emptySnapshot, type Adapter, type Snapshot } from './sync'
+import { auth, emptySnapshot, type Adapter, type Snapshot } from './sync'
 import { format, startOfWeek } from 'date-fns'
 import type { Activity, Automation, AutomationAction, Board, CellValue, Column, Doc, Docs, Group, Item, Kind, Label, User, View, Workspace } from './types'
 import { COLORS, COLOR_LIST, DEMO_USERS, TEMPLATES, dayOffset, priorityLabels, statusLabels, today, uid } from './seed'
@@ -174,7 +174,7 @@ export function createBoardFromTemplate(templateId: string, workspaceId: string,
   const { board, items } = t.build(workspaceId, people)
   if (name) board.name = name
   put('board', board)
-  items.forEach((it) => put('item', it))
+  if (!auth) items.forEach((it) => put('item', it)) // example items only in local mode; team boards start empty
   log(board.id, `created board “${board.name}”`)
   navigate({ page: 'board', boardId: board.id })
   return board
