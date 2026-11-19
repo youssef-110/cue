@@ -189,7 +189,7 @@ export function Features() {
         <Tile className="lg:col-span-4" title="Command palette" body="Press Ctrl K or ⌘ K to jump to any board, item or action.">
           <Palette />
         </Tile>
-        <Tile className="lg:col-span-2" title="Realtime sync" body="Edits from teammates land in a blink, through your own free Supabase project.">
+        <Tile className="lg:col-span-2" title="Realtime sync" body="Edits from teammates land in a blink, through your own free Firebase project.">
           <Sync />
         </Tile>
         <Tile className="lg:col-span-2" title="My work" body="Everything assigned to you, across every board, sorted by date.">
@@ -408,13 +408,13 @@ const STEPS = [
     code: 'git clone https://github.com/<you>/tideline\ncd tideline\nnpm install\nnpm run dev',
   },
   {
-    title: 'Create a free Supabase project',
-    body: 'Open the SQL editor and run supabase/schema.sql. It creates the table, row-level security and realtime. Turn off public sign-ups and invite your team by email.',
-    code: '# .env\nVITE_SUPABASE_URL=https://<project>.supabase.co\nVITE_SUPABASE_ANON_KEY=<anon key>',
+    title: 'Create a free Firebase project',
+    body: 'Turn on Email/Password sign-in, create Firestore, deploy firestore.rules, then claim the workspace. Add teammates from the Team screen.',
+    code: '# .env.production\nVITE_FIREBASE_API_KEY=<key>\nVITE_FIREBASE_PROJECT_ID=<project>\n\nnpx firebase deploy --only firestore:rules',
   },
   {
     title: 'Deploy it',
-    body: 'Add the two values as repository secrets and set Pages to deploy from GitHub Actions. The included workflow builds and publishes on every push to main. Vercel works too.',
+    body: 'Commit .env.production and set Pages to deploy from GitHub Actions. The included workflow builds and publishes on every push to main. Vercel works too.',
     code: 'git push origin main\n# or\nnpx vercel --prod',
   },
 ]

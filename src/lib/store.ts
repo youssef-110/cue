@@ -18,6 +18,7 @@ interface State extends Snapshot {
   openItemId: string | null
   paletteOpen: boolean
   theme: 'light' | 'dark'
+  isAdmin: boolean
 }
 
 export const useStore = create<State>(() => ({
@@ -28,6 +29,7 @@ export const useStore = create<State>(() => ({
   route: parseHash(),
   openItemId: null,
   paletteOpen: false,
+  isAdmin: false,
   theme: (localStorage.getItem('tideline:theme') as 'light' | 'dark') ?? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'),
 }))
 const get = useStore.getState

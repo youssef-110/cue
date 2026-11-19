@@ -1,0 +1,122 @@
+rules_version = '2';
+
+// Tideline access rules.
+// Only verified emails listed in /members can read or write team data.
+// Admins manage /members from the app's Team screen.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+    function me() {
+      return request.auth.token.email.lower();
+    }
+    function memberDoc() {
+      return /databases/$(database)/documents/members/$(me());
+    }
+    function isMember() {
+      return signedIn() && exists(memberDoc());
+    }
+    function isAdmin() {
+      return isMember() && get(memberDoc()).data.role == 'admin';
+    }
+    function uid() {
+      return request.auth.uid;
+    }
+    // ownership fields must never be rewritten
+    function keeps(field) {
+      return request.resource.data.get(field, null) == resource.data.get(field, null);
+    }
+    function keepsOwnership() {
+      return request.resource.data.id == resource.data.id
+        && keeps('authorId') && keeps('actorId') && keeps('userId') && keeps('createdBy');
+    }
+    function idMatches(id) {
+      return request.resource.data.id == id;
+    }
+
+    // ---------- workspace setup & team ----------
+    match /meta/setup {
+      allow read: if signedIn();
+      // created once, in the same batch as the first admin's member row
+      allow create: if signedIn()
+        && request.resource.data.owner == me()
+        && getAfter(memberDoc()).data.role == 'admin';
+    }
+
+    match /members/{email} {
+      allow read: if isMember() || (signedIn() && email == me());
+      allow create: if (isAdmin() && validMember(email))
+        || (signedIn() && email == me() && request.resource.data.role == 'admin'
+            && !exists(/databases/$(database)/documents/meta/setup)
+            && existsAfter(/databases/$(database)/documents/meta/setup));
+      allow update: if isAdmin() && validMember(email) && email != me();
+      allow delete: if isAdmin() && email != me();
+
+      function validMember(e) {
+        return request.resource.data.email == e
+          && e == e.lower()
+          && request.resource.data.role in ['admin', 'member'];
+      }
+    }
+
+    // ---------- shared team work: any member ----------
+    match /{kind}/{id} {
+      allow read: if isMember() && kind in ['workspace', 'board', 'item', 'update', 'user', 'activity'];
+    }
+    match /workspace/{id} {
+      allow create: if isMember() && idMatches(id);
+      allow update: if isMember() && keepsOwnership();
+      allow delete: if isMember();
+    }
+    match /board/{id} {
+      allow create: if isMember() && idMatches(id);
+      allow update: if isMember() && keepsOwnership();
+      allow delete: if isMember();
+    }
+    match /item/{id} {
+      allow create: if isMember() && idMatches(id);
+      allow update: if isMember() && keepsOwnership();
+      allow delete: if isMember();
+    }
+
+    // ---------- personal rows ----------
+    // profiles: your own, or placeholder teammates (ids starting with u_)
+    match /user/{id} {
+      allow create, update: if isMember() && idMatches(id) && (id == uid() || id.matches('u_.*'));
+    }
+
+    // comments: written as yourself; others may only add/remove their own like
+    match /update/{id} {
+      allow create: if isMember() && idMatches(id) && request.resource.data.authorId == uid();
+      allow update: if isMember() && keepsOwnership()
+        && (resource.data.authorId == uid() || onlyMyLikeChanged());
+      allow delete: if isMember() && resource.data.authorId == uid();
+
+      function onlyMyLikeChanged() {
+        let before = resource.data.get('likes', []);
+        let after = request.resource.data.get('likes', []);
+        return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes'])
+          && (
+            (!(uid() in before) && after.size() == before.size() + 1 && after.hasAll(before) && uid() in after)
+            || (uid() in before && after == before.removeAll([uid()]))
+          );
+      }
+    }
+
+    // activity log: append-only, written as yourself
+    match /activity/{id} {
+      allow create: if isMember() && idMatches(id) && request.resource.data.actorId == uid();
+    }
+
+    // notifications: sent as yourself; only recipient or sender can read / mark read
+    match /notification/{id} {
+      allow read: if isMember() && (resource.data.userId == uid() || resource.data.actorId == uid());
+      allow create: if isMember() && idMatches(id) && request.resource.data.actorId == uid();
+      allow update: if isMember() && keepsOwnership()
+        && uid() in [resource.data.userId, resource.data.actorId]
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+    }
+  }
+}

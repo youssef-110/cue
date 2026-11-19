@@ -1,5 +1,5 @@
 // Core domain model. Every entity is stored as an independent document so it
-// can sync row-by-row (local storage or the Supabase `docs` table).
+// can sync row-by-row (browser storage or one Firestore collection per kind).
 
 export type ColumnType =
   | 'status'

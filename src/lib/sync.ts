@@ -1,4 +1,23 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { initializeApp } from 'firebase/app'
+import { connectAuthEmulator, getAuth } from 'firebase/auth'
+import {
+  collection,
+  connectFirestoreEmulator,
+  deleteDoc,
+  doc as fsDoc,
+  getDocs,
+  initializeFirestore,
+  limit,
+  onSnapshot,
+  orderBy,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+  query,
+  setDoc,
+  where,
+  type Firestore,
+  type Query,
+} from 'firebase/firestore'
 import { KINDS, type Docs, type Kind } from './types'
 
 export type Snapshot = { [K in Kind]: Record<string, Docs[K]> }
@@ -67,67 +86,73 @@ export function localAdapter(): Adapter {
   }
 }
 
-export const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined
-export const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
-export const supabase: SupabaseClient | null =
-  supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null
-
-/** Shared team storage: one `docs` table, realtime row updates. */
-export function cloudAdapter(sb: SupabaseClient): Adapter {
-  const report = (error: { message: string } | null) => {
-    if (error) {
-      console.error('Tideline sync error', error)
-      window.dispatchEvent(new CustomEvent('tideline:sync-error', { detail: error.message }))
+const env = import.meta.env
+export const firebaseConfig = env.VITE_FIREBASE_API_KEY
+  ? {
+      apiKey: env.VITE_FIREBASE_API_KEY as string,
+      authDomain: env.VITE_FIREBASE_AUTH_DOMAIN as string,
+      projectId: env.VITE_FIREBASE_PROJECT_ID as string,
+      appId: env.VITE_FIREBASE_APP_ID as string,
     }
+  : null
+export const app = firebaseConfig ? initializeApp(firebaseConfig) : null
+export const auth = app ? getAuth(app) : null
+export const db = app
+  ? initializeFirestore(app, { ignoreUndefinedProperties: true, localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) })
+  : null
+// local development against `npm run emulators` (no real project needed)
+if (env.VITE_FIREBASE_EMULATOR && auth && db) {
+  connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true })
+  connectFirestoreEmulator(db, '127.0.0.1', 8085)
+}
+
+/**
+ * Shared team storage: one Firestore collection per kind, live listeners.
+ * Activity is capped to the newest rows and notifications are scoped to you,
+ * which keeps daily reads well inside the free quota.
+ */
+export function cloudAdapter(fs: Firestore, uid: string): Adapter {
+  const report = (e: unknown) => {
+    console.error('Tideline sync error', e)
+    window.dispatchEvent(new CustomEvent('tideline:sync-error', { detail: (e as Error).message }))
   }
-  // Our own writes echo back through realtime; ignore echoes for rows we just
-  // wrote so fast typing never flickers back to an older value.
-  const recent = new Map<string, number>()
-  const mark = (id: string) => recent.set(id, Date.now())
+  const queries = (): [Kind, Query][] =>
+    KINDS.map((kind) => {
+      const c = collection(fs, kind)
+      if (kind === 'activity') return [kind, query(c, orderBy('at', 'desc'), limit(400))]
+      if (kind === 'notification') return [kind, query(c, where('userId', '==', uid))]
+      return [kind, c]
+    })
   return {
     mode: 'cloud',
     async load() {
       const snap = emptySnapshot()
-      const pageSize = 1000
-      for (let from = 0; ; from += pageSize) {
-        const { data, error } = await sb
-          .from('docs')
-          .select('id, kind, data')
-          .eq('deleted', false)
-          .range(from, from + pageSize - 1)
-        if (error) throw error
-        for (const row of data) if (row.kind in snap) (snap[row.kind as Kind] as Record<string, unknown>)[row.id] = row.data
-        if (data.length < pageSize) break
-      }
+      await Promise.all(
+        queries().map(async ([kind, q]) => {
+          const res = await getDocs(q)
+          res.forEach((d) => ((snap[kind] as Record<string, unknown>)[d.id] = d.data()))
+        }),
+      )
       return snap
     },
     put(kind, doc) {
-      mark(doc.id)
-      sb.from('docs')
-        .upsert({ id: doc.id, kind, data: doc, deleted: false, updated_at: new Date().toISOString() })
-        .then(({ error }) => report(error))
+      setDoc(fsDoc(fs, kind, doc.id), doc).catch(report)
     },
     remove(kind, id) {
-      mark(id)
-      sb.from('docs')
-        .update({ deleted: true, updated_at: new Date().toISOString() })
-        .eq('id', id)
-        .eq('kind', kind)
-        .then(({ error }) => report(error))
+      deleteDoc(fsDoc(fs, kind, id)).catch(report)
     },
     subscribe(cb) {
-      const ch = sb
-        .channel('docs')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'docs' }, (p) => {
-          const row = (p.new && 'id' in p.new ? p.new : p.old) as { id: string; kind: Kind; data: Docs[Kind]; deleted?: boolean }
-          if (!row?.id || !KINDS.includes(row.kind)) return
-          if (Date.now() - (recent.get(row.id) ?? 0) < 2500) return
-          cb({ kind: row.kind, id: row.id, doc: p.eventType === 'DELETE' || row.deleted ? null : row.data })
-        })
-        .subscribe()
-      return () => {
-        sb.removeChannel(ch)
-      }
+      const offs = queries().map(([kind, q]) =>
+        onSnapshot(
+          q,
+          (res) =>
+            res.docChanges().forEach((ch) =>
+              cb({ kind, id: ch.doc.id, doc: ch.type === 'removed' ? null : (ch.doc.data() as Docs[Kind]) }),
+            ),
+          report,
+        ),
+      )
+      return () => offs.forEach((off) => off())
     },
   }
 }

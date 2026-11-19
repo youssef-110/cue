@@ -3,11 +3,13 @@ import { AnimatePresence, motion } from 'motion/react'
 import { Toaster, toast } from 'sonner'
 import { useShallow } from 'zustand/react/shallow'
 import { checkDateAutomations, init, openItem, setPalette, setTheme, useStore } from './lib/store'
-import { cloudAdapter, localAdapter, supabase } from './lib/sync'
+import { onAuthStateChanged } from 'firebase/auth'
+import { auth, cloudAdapter, db, localAdapter } from './lib/sync'
+import { checkAccess } from './lib/team'
 import { Sidebar } from './components/Sidebar'
 import { ItemPanel } from './components/ItemPanel'
 import { CommandPalette } from './components/CommandPalette'
-import { Onboarding, SignIn, Splash } from './pages/Auth'
+import { ClaimWorkspace, NotOnTeam, Onboarding, SignIn, Splash, VerifyEmail } from './pages/Auth'
 import { BoardPage } from './pages/BoardPage'
 import { MyWork } from './pages/MyWork'
 import { Inbox } from './pages/Inbox'
@@ -18,29 +20,32 @@ const LOCAL_ME = 'tideline:me'
 export default function App() {
   const { ready, theme, meId, route } = useStore(useShallow((s) => ({ ready: s.ready, theme: s.theme, meId: s.meId, route: s.route })))
   const hasProfile = useStore((s) => !!s.user[s.meId])
-  const [session, setSession] = useState<'loading' | 'out' | 'in'>(supabase ? 'loading' : 'in')
+  const [session, setSession] = useState<'loading' | 'out' | 'unverified' | 'claim' | 'denied' | 'in'>(auth ? 'loading' : 'in')
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark')
   }, [theme])
 
-  // connect storage
+  // connect storage: local mode, or Firebase sign-in -> team check -> live sync
   useEffect(() => {
-    if (!supabase) {
+    if (!auth || !db) {
       init(localAdapter(), localStorage.getItem(LOCAL_ME) ?? '')
       return
     }
-    const sb = supabase
-    sb.auth.getSession().then(({ data }) => setSession(data.session ? 'in' : 'out'))
-    const { data: sub } = sb.auth.onAuthStateChange((_e, s) => setSession(s ? 'in' : 'out'))
-    return () => sub.subscription.unsubscribe()
+    return onAuthStateChanged(auth, async (u) => {
+      if (!u) return setSession('out')
+      if (!u.emailVerified) return setSession('unverified')
+      try {
+        const access = await checkAccess()
+        if (access === 'claim' || access === 'denied') return setSession(access)
+        useStore.setState({ isAdmin: access === 'admin' })
+        if (!useStore.getState().ready) await init(cloudAdapter(db!, u.uid), u.uid)
+        setSession('in')
+      } catch (e) {
+        toast.error('Could not load your team data: ' + (e as Error).message)
+      }
+    })
   }, [])
-  useEffect(() => {
-    if (!supabase || session !== 'in' || useStore.getState().ready) return
-    supabase.auth.getUser().then(({ data }) =>
-      init(cloudAdapter(supabase!), data.user!.id).catch((e) => toast.error('Could not load your team data: ' + e.message)),
-    )
-  }, [session])
 
   useEffect(() => {
     if (!ready) return
@@ -78,6 +83,9 @@ export default function App() {
   let body
   if (session === 'loading' || (session === 'in' && !ready)) body = <Splash />
   else if (session === 'out') body = <SignIn />
+  else if (session === 'unverified') body = <VerifyEmail />
+  else if (session === 'claim') body = <ClaimWorkspace />
+  else if (session === 'denied') body = <NotOnTeam />
   else if (!meId || !hasProfile) body = <Onboarding localKey={LOCAL_ME} />
   else
     body = (

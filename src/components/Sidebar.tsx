@@ -16,13 +16,16 @@ import {
   Star,
   Sun,
   Upload,
+  Users,
   Pencil,
   Trash2,
   Copy,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { createWorkspace, deleteBoard, duplicateBoard, navigate, setPalette, setTheme, updateBoard, useStore } from '../lib/store'
-import { supabase } from '../lib/sync'
+import { signOut } from 'firebase/auth'
+import { auth } from '../lib/sync'
+import { TeamModal } from './TeamModal'
 import { importCSV } from '../lib/csv'
 import { Avatar, Kbd, Logo, MenuItem, Popover, cx } from './ui'
 import { TemplateModal } from './TemplateModal'
@@ -39,6 +42,7 @@ export function Sidebar() {
   const boards = useStore((s) => s.board)
   const unread = useStore((s) => Object.values(s.notification).filter((n) => n.userId === meId && !n.read).length)
   const [templateFor, setTemplateFor] = useState<string | null>(null)
+  const [teamOpen, setTeamOpen] = useState(false)
   const [favs] = useFavorites()
   const fileRef = useRef<HTMLInputElement>(null)
   const importWs = useRef('')
@@ -90,6 +94,12 @@ export function Sidebar() {
         {nav('home', <House />, 'Home')}
         {nav('my-work', <Briefcase />, 'My work')}
         {nav('inbox', <Inbox />, 'Inbox', unread)}
+        {auth && (
+          <button onClick={() => setTeamOpen(true)} title="Team" className="flex h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-[13.5px] text-muted transition-colors hover:bg-hover hover:text-fg [&>svg]:size-[18px]">
+            <Users />
+            {!collapsed && <span className="flex-1 text-left">Team</span>}
+          </button>
+        )}
       </div>
 
       <div className="mt-3 min-h-0 flex-1 overflow-y-auto px-2.5 pb-4">
@@ -154,8 +164,8 @@ export function Sidebar() {
             <div className="min-w-0 flex-1 leading-tight">
               <div className="truncate text-[13px] font-medium">{me?.name}</div>
               <div className="flex items-center gap-1 text-[11px] text-faint">
-                {supabase ? <Cloud className="size-3" /> : <HardDrive className="size-3" />}
-                {supabase ? 'Team sync on' : 'Local mode'}
+                {auth ? <Cloud className="size-3" /> : <HardDrive className="size-3" />}
+                {auth ? 'Team sync on' : 'Local mode'}
               </div>
             </div>
           )}
@@ -166,8 +176,8 @@ export function Sidebar() {
               </motion.span>
             </AnimatePresence>
           </button>
-          {supabase && (
-            <button onClick={() => supabase!.auth.signOut().then(() => location.reload())} aria-label="Sign out" title="Sign out" className="grid size-8 place-items-center rounded-lg text-muted hover:bg-hover hover:text-fg">
+          {auth && (
+            <button onClick={() => signOut(auth!).then(() => location.reload())} aria-label="Sign out" title="Sign out" className="grid size-8 place-items-center rounded-lg text-muted hover:bg-hover hover:text-fg">
               <LogOut className="size-4" />
             </button>
           )}
@@ -192,6 +202,7 @@ export function Sidebar() {
         }}
       />
       <TemplateModal workspaceId={templateFor} onClose={() => setTemplateFor(null)} />
+      {auth && <TeamModal open={teamOpen} onClose={() => setTeamOpen(false)} />}
     </motion.aside>
   )
 }

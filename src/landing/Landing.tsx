@@ -227,7 +227,7 @@ const INCLUDED = [
   'Table, Kanban, Timeline, Calendar and Dashboard views',
   'Automations, templates and CSV import or export',
   'Updates, @mentions, likes and a notifications inbox',
-  'Realtime sync through your own Supabase project',
+  'Realtime sync through your own Firebase project',
   'Local mode with no account at all',
   'MIT license: fork it, change it, keep it',
 ]
@@ -289,19 +289,19 @@ function Pricing() {
 const FAQ = [
   {
     q: 'Is it really free?',
-    a: 'Yes. Tideline is MIT-licensed open source with no paid tier and no seat limits. You host it yourself on free plans: a static host for the app and a Supabase project for team sync.',
+    a: 'Yes. Tideline is MIT-licensed open source with no paid tier and no seat limits. You host it yourself on free plans: a static host for the app and a Firebase project for team sync.',
   },
   {
     q: 'Where is my data stored?',
-    a: 'In local mode, in your browser on your device. In team mode, in the Postgres database of the Supabase project you create. Tideline has no servers of its own, so your data only ever goes where you send it.',
+    a: 'In local mode, in your browser on your device. In team mode, in the Firestore database of the Firebase project you create. Tideline has no servers of its own, so your data only ever goes where you send it.',
   },
   {
-    q: 'Do I need Supabase?',
-    a: 'Only to work together in realtime. Local mode needs no setup and no account; it is a good way to try Tideline or to run your own boards. Add the two Supabase values to your environment when you want to bring the team in.',
+    q: 'Do I need Firebase?',
+    a: 'Only to work together in realtime. Local mode needs no setup and no account; it is a good way to try Tideline or to run your own boards. Add your Firebase web config when you want to bring the team in.',
   },
   {
     q: 'Who can sign in to our workspace?',
-    a: 'Only people you invite. The setup guide has you turn off public sign-ups in Supabase and invite teammates by email, and row-level security only lets signed-in members read or write.',
+    a: 'Only people an admin adds on the Team screen. Firestore security rules only let verified emails on that list read or write, and removing someone cuts their access immediately.',
   },
   {
     q: 'Can I bring in data from spreadsheets?',

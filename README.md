@@ -11,7 +11,7 @@
 
 ---
 
-Tideline is a team work OS you host yourself. Plan projects on boards with typed columns, look at the same work as a table, a Kanban board, a Gantt timeline, a calendar or a dashboard, and let simple automations handle the busywork. Run it in your browser with zero setup, or connect a free Supabase project to work together in realtime.
+Tideline is a team work OS you host yourself. Plan projects on boards with typed columns, look at the same work as a table, a Kanban board, a Gantt timeline, a calendar or a dashboard, and let simple automations handle the busywork. Run it in your browser with zero setup, or connect a free Firebase project to work together in realtime.
 
 It was built by the Deep Echo team to run their own work, and released under the MIT license for any small team that wants a polished tool without per-seat pricing.
 
@@ -35,7 +35,7 @@ It was built by the Deep Echo team to run their own work, and released under the
 - Activity log on every item
 - Notifications inbox
 - **My work**: everything assigned to you across all boards, sorted by date
-- Realtime sync for the whole team through Supabase
+- Realtime sync for the whole team through Firebase, with an admin-managed team list
 
 **Automations** (no code)
 - When a status changes: move the item to a group, notify someone, set a status, assign a person or set a date
@@ -60,41 +60,51 @@ Open <http://localhost:5173/app.html>. That's it: **local mode needs no setup**.
 
 The marketing site lives at <http://localhost:5173/> (`index.html`); the product is `app.html`.
 
-## Team mode with Supabase
+## Team mode with Firebase
 
-To share boards with your team in realtime, connect a free Supabase project.
+To share boards with your team in realtime, connect a free Firebase project (Spark plan: no card, never paused).
 
-1. **Create a project** at [supabase.com](https://supabase.com). The free tier is enough for a small team.
-2. **Create the schema.** In the dashboard, open **SQL Editor**, paste the contents of [`supabase/schema.sql`](supabase/schema.sql) and run it. It creates the `docs` table, a `team_members` allow-list, row-level security so only listed emails can read or write, and enables realtime. **Edit the last statement first** so it lists your teammates' emails (re-run just that `insert` whenever someone joins).
-3. **Lock down sign-ups.** In **Authentication → Sign In / Providers** (called **Authentication → Settings** in older dashboards), turn off **Allow new users to sign up**. Then invite each teammate from **Authentication → Users → Invite user**. Only invited people can sign in.
-4. **Add your keys.** Copy `.env.example` to `.env` and fill in the values from **Project Settings → API**:
+1. **Create a project** at [console.firebase.google.com](https://console.firebase.google.com).
+2. **Turn on sign-in:** Build → Authentication → Get started → **Email/Password** → Enable.
+3. **Create the database:** Build → Firestore Database → Create database → **production mode**.
+4. **Register a web app:** Project settings → Your apps → Web (`</>`). Copy the config into `.env.production` (and `.env.local` for development):
 
    ```bash
-   VITE_SUPABASE_URL=https://your-project.supabase.co
-   VITE_SUPABASE_ANON_KEY=your-anon-key
+   VITE_FIREBASE_API_KEY=...
+   VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+   VITE_FIREBASE_PROJECT_ID=your-project
+   VITE_FIREBASE_APP_ID=...
    ```
 
-5. Restart `npm run dev`. Tideline now asks you to sign in and syncs every change live.
+5. **Deploy the security rules:**
 
-The anon key is safe to ship in a browser app: access is enforced by the row-level security policies in `schema.sql`. Never put the `service_role` key in `.env`.
+   ```bash
+   npx firebase login
+   npx firebase deploy --only firestore:rules --project your-project
+   ```
+
+6. **Claim the workspace.** Open the app, choose **Create account**, verify your email, then press **Claim workspace**. You are now the admin.
+7. **Add your team** from the **Team** screen in the sidebar. Each person opens the app, picks **Create account** with the email you added, and verifies it. Remove someone and they lose access immediately.
+
+Access is enforced by [`firestore.rules`](firestore.rules): only verified emails on the team list can read or write, comments and activity are bound to their author, and only admins manage the team. The web config is not a secret; the rules are what protect your data. Test them locally with `npm run test:rules` (needs Java), or run the whole app against local emulators with `npm run emulators` plus a `.env.local` that sets `VITE_FIREBASE_EMULATOR=1`.
 
 ## Deploy
 
-`npm run build` produces a static site in `dist/` (with `base: './'`, so it works from any sub-path). Any static host works.
+`npm run build` produces a static site in `dist/` (with `base: './'`, so it works from any sub-path). Any static host works. In Firebase → Authentication → Settings → **Authorized domains**, add the domain you deploy to.
 
 ### GitHub Pages
 
 A workflow is included at [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml). It builds and deploys on every push to `main`, and can be run by hand from the Actions tab.
 
 1. In your repository, go to **Settings → Pages** and set **Source** to **GitHub Actions**.
-2. For team mode, go to **Settings → Secrets and variables → Actions** and add two repository secrets: `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. Leave them out to deploy in local mode; the build succeeds either way.
+2. Commit your `.env.production` (Firebase web config) for team mode, or leave it out to deploy in local mode.
 3. Push to `main`.
 
 Your site will be at `https://<user>.github.io/<repo>/`, with the app at `.../app.html`.
 
 ### Vercel
 
-Import the repository in Vercel. It detects Vite automatically (build command `npm run build`, output directory `dist`). Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` under **Settings → Environment Variables** for team mode, then deploy. From the command line:
+Import the repository in Vercel. It detects Vite automatically (build command `npm run build`, output directory `dist`). From the command line:
 
 ```bash
 npx vercel --prod
@@ -121,7 +131,7 @@ npx vercel --prod
 - [cmdk](https://cmdk.paco.me) for the command palette
 - [Recharts](https://recharts.org) for dashboard charts
 - [date-fns](https://date-fns.org), [lucide-react](https://lucide.dev) icons, [Sonner](https://sonner.emilkowal.ski) toasts
-- [Supabase](https://supabase.com) (Postgres, Auth, Realtime) for team mode
+- [Firebase](https://firebase.google.com) (Auth, Firestore) for team mode
 
 ## Project structure
 
@@ -130,8 +140,8 @@ npx vercel --prod
 ├── index.html               # Marketing site entry
 ├── app.html                 # Product entry
 ├── public/                  # Static assets (favicon, social card)
-├── supabase/
-│   └── schema.sql           # Table, row-level security and realtime for team mode
+├── firestore.rules          # Who can read/write what in team mode
+├── tests/rules.test.mjs     # Rules tests (npm run test:rules)
 ├── src/
 │   ├── main.tsx             # App bootstrap
 │   ├── App.tsx              # App shell and routing between pages
@@ -139,7 +149,7 @@ npx vercel --prod
 │   ├── components/          # Shared UI: cells, sidebar, automations, templates, primitives
 │   ├── views/               # Table, Kanban, Timeline, Calendar and Dashboard views
 │   ├── pages/               # Board, My work, Inbox, sign-in and other pages
-│   ├── lib/                 # Types, store, sync (local and Supabase), seed data, CSV
+│   ├── lib/                 # Types, store, sync (local and Firebase), team, seed data, CSV
 │   └── landing/             # Marketing site components
 └── .github/workflows/
     └── deploy.yml           # Build and deploy to GitHub Pages
