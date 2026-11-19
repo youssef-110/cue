@@ -54,7 +54,7 @@ The team's hosted workspace is private. There is no public sign-up: the team's a
 - Username and password logins created by an admin; no public sign-up
 - Admin, member and viewer roles; role changes apply live
 - Private boards: shared with chosen people only, enforced by the Firestore rules (admins can always open them)
-- Email notifications: each person adds their email in their profile; the team server sends assignments, mentions and replies
+- Email notifications: each person connects their email with a 6-digit code; the team server sends assignments, mentions and replies through Resend or SMTP
 - Welcome tour for everyone, an admin tour, and a built-in Help page
 - The admin resets forgotten passwords; people choose their own password at their next sign-in
 
@@ -108,7 +108,7 @@ Logins are usernames. Firebase Auth needs an email address, so each username is 
    - Edit the project number, project id and service-account email at the top of `api/team.ts`.
    - On Vercel set `ALLOWED_ORIGINS`: a comma-separated list of the origins your site is served from.
 
-   - Optional, for email notifications: set `SMTP_USER` and `SMTP_PASS` on Vercel. A Gmail address with an [app password](https://myaccount.google.com/apppasswords) works; for another provider also set `SMTP_HOST` and `SMTP_PORT`. Set `APP_URL` to your app's address so email links point to it.
+   - Optional, for email notifications: set `RESEND_API_KEY` on Vercel (and `MAIL_FROM`, e.g. `Cue <cue@your-domain.com>`, once your domain is verified in Resend). Or use SMTP: set `SMTP_USER` and `SMTP_PASS`. A Gmail address with an [app password](https://myaccount.google.com/apppasswords) works; for another provider also set `SMTP_HOST` and `SMTP_PORT`. Set `APP_URL` to your app's address so email links point to it.
 
    The app calls `/api/team` by default, which works when the site and the function are deployed together. If the site is hosted elsewhere, such as GitHub Pages, set `VITE_ADMIN_API` to the function's full URL at build time.
 

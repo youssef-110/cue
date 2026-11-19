@@ -14,6 +14,7 @@ export interface Member {
   addedBy: string
   addedAt: number
   mustChangePassword?: boolean
+  notifyEmail?: string // confirmed by code; only the team server writes it
 }
 
 export const LOGIN_DOMAIN = 'cue.invalid'
@@ -68,6 +69,10 @@ export const watchMyMembership = (uid: string, cb: (m: Member | null) => void) =
 /** Ask the team server to email these notifications (it checks each recipient's settings). */
 export const emailNotifications = (ids: string[]) => (ids.length ? call<{ sent: number }>({ action: 'notify', ids }) : Promise.resolve({ sent: 0 }))
 export const sendTestEmail = () => call<{ to: string }>({ action: 'test' })
+/** Connect an email: the server mails a 6-digit code, then confirms it. */
+export const startEmail = (email: string) => call<{ ok: true }>({ action: 'email-start', email })
+export const confirmEmail = (code: string) => call<{ email: string }>({ action: 'email-confirm', code })
+export const disconnectEmail = () => call<{ ok: true }>({ action: 'email-remove' })
 /** Restamp a board and everything on it with new readers (server side, so nothing is missed). */
 export const saveBoardAccess = (boardId: string, readers: string[]) => call({ action: 'access', boardId, readers })
 

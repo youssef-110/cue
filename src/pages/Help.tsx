@@ -125,8 +125,8 @@ const SECTIONS: Section[] = [
         </P>
         <P>Click <B>Reply</B> under an update to answer it in a thread. The person who wrote it is notified.</P>
         <P>
-          <B>Email notifications:</B> click your name at the bottom of the left rail, add your email and tick <B>Email me my notifications</B>. Use <B>Send a test
-          email</B> to check it arrives. The Inbox still gets everything.
+          <B>Email notifications:</B> click your name at the bottom of the left rail, type your email and click <B>Send code</B>. Enter the 6-digit code from
+          the email to connect it. Notifications then come by email too, and you can switch them off or disconnect at any time. The Inbox still gets everything.
         </P>
         <P>
           <B>My work</B> lists everything assigned to you on any board, grouped by Overdue, Today, This week, Next week, Later and No date. It is the best place to start the day.

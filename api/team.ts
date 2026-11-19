@@ -3,8 +3,13 @@
 // Members: change who can see a board (restamps every document on it), send notification emails.
 // Keyless: Vercel's per-request OIDC token is exchanged for Google credentials via
 // workload identity federation (pool "vercel" -> service account cue-team-api). No key file exists.
-// Env: ALLOWED_ORIGINS (comma list). Email (optional): SMTP_USER + SMTP_PASS (a Gmail address and an app
-// password work), SMTP_HOST (default smtp.gmail.com), SMTP_PORT (default 465), APP_URL (link in emails).
+// Env: ALLOWED_ORIGINS (comma list). Email (optional), either:
+//   RESEND_API_KEY (+ MAIL_FROM, e.g. "Cue <cue@your-domain.com>" once the domain is verified in Resend), or
+//   SMTP_USER + SMTP_PASS (a Gmail address and an app password work), SMTP_HOST, SMTP_PORT.
+// APP_URL: the app's address, used for links in emails.
+// People connect an address by confirming a 6-digit code; only confirmed addresses (members/{uid}.notifyEmail,
+// written here) ever receive mail. Pending codes live in /emailCodes, which browsers cannot read.
+import { createHash, randomInt } from 'node:crypto'
 import { writeFileSync } from 'node:fs'
 import { applicationDefault, getApps, initializeApp } from 'firebase-admin/app'
 import { getAuth } from 'firebase-admin/auth'
@@ -66,8 +71,23 @@ const role = (v: unknown) => ((ROLES as readonly string[]).includes(v as string)
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const APP_URL = process.env.APP_URL || 'https://youssef-110.github.io/tideline/app.html'
 const esc = (t: string) => t.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
+type Mail = { to: string; subject: string; html: string; text: string }
 let mailer: nodemailer.Transporter | null = null
-function mail() {
+/** Send through Resend when its key is set, otherwise SMTP. */
+async function send(m: Mail) {
+  const key = process.env.RESEND_API_KEY
+  if (key) {
+    const r = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: process.env.MAIL_FROM || 'Cue <onboarding@resend.dev>', ...m }),
+    })
+    if (!r.ok) {
+      const e = (await r.json().catch(() => ({}))) as { message?: string }
+      fail(502, `The email service refused the message: ${String(e.message ?? r.status).slice(0, 160)}`)
+    }
+    return
+  }
   const user = process.env.SMTP_USER
   const pass = process.env.SMTP_PASS
   if (!user || !pass) fail(503, 'Email is not set up on the team server yet. Ask your admin.')
@@ -77,19 +97,21 @@ function mail() {
     secure: Number(process.env.SMTP_PORT || 465) === 465,
     auth: { user, pass },
   })
-  return { mailer, from: `"Cue" <${user}>` }
+  await mailer.sendMail({ from: `"Cue" <${user}>`, ...m }).catch((e: Error) => fail(502, 'The mail server refused the message: ' + e.message.slice(0, 120)))
 }
-function render(headline: string, body: string, link: string) {
+const hashCode = (uid: string, code: string) => createHash('sha256').update(`${uid}:${code}`).digest('hex')
+function render(headline: string, body: string, link: string, code?: string) {
   const html = `<!doctype html><html><body style="margin:0;background:#f4f3ee;font-family:Helvetica,Arial,sans-serif;color:#121212">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px 12px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border:1px solid #e3e2db">
 <tr><td style="background:#f6d11f;padding:14px 20px;font-weight:700;font-size:18px;letter-spacing:.08em">CUE</td></tr>
 <tr><td style="padding:22px 20px 8px;font-size:17px;font-weight:700;line-height:1.35">${esc(headline)}</td></tr>
 <tr><td style="padding:0 20px 18px;font-size:15px;line-height:1.5;color:#55554f">${esc(body)}</td></tr>
-<tr><td style="padding:0 20px 24px"><a href="${esc(link)}" style="display:inline-block;background:#121212;color:#f4f3ee;text-decoration:none;font-weight:700;font-size:14px;padding:10px 16px;border-radius:4px">Open in Cue</a></td></tr>
-<tr><td style="border-top:1px solid #e3e2db;padding:12px 20px;font-size:12px;color:#74746e">You get these because email notifications are on in your Cue profile. Click your name in Cue to turn them off.</td></tr>
+${code ? `<tr><td style="padding:0 20px 24px"><span style="display:inline-block;font-family:Menlo,Consolas,monospace;font-size:30px;font-weight:700;letter-spacing:.3em;background:#121212;color:#f6d11f;padding:12px 18px;border-radius:4px">${esc(code)}</span></td></tr>`
+  : `<tr><td style="padding:0 20px 24px"><a href="${esc(link)}" style="display:inline-block;background:#121212;color:#f4f3ee;text-decoration:none;font-weight:700;font-size:14px;padding:10px 16px;border-radius:4px">Open in Cue</a></td></tr>`}
+<tr><td style="border-top:1px solid #e3e2db;padding:12px 20px;font-size:12px;color:#74746e">${code ? 'If you did not ask for this code, ignore this email.' : 'You get these because email notifications are on in your Cue profile. Click your name in Cue to turn them off.'}</td></tr>
 </table></td></tr></table></body></html>`
-  return { html, text: `${headline}\n\n${body}\n\nOpen in Cue: ${link}\n\nTurn these off from your profile in Cue.` }
+  return { html, text: code ? `${headline}\n\n${body}\n\n${code}\n\nIf you did not ask for this code, ignore this email.` : `${headline}\n\n${body}\n\nOpen in Cue: ${link}\n\nTurn these off from your profile in Cue.` }
 }
 const canSeeBoard = (readers: unknown, uid: string, admin: boolean) => admin || !Array.isArray(readers) || readers.includes('*') || readers.includes(uid)
 
@@ -204,7 +226,6 @@ export default async function handler(req: Req, res: Res) {
       case 'notify': {
         const ids = Array.isArray(body.ids) ? (body.ids as unknown[]).filter((x): x is string => typeof x === 'string' && /^n_[\w-]{4,40}$/.test(x)).slice(0, 25) : []
         if (!ids.length) return res.status(200).json({ sent: 0 })
-        const { mailer: m, from } = mail()
         const actor = (await db.doc(`user/${caller.uid}`).get()).get('name') ?? 'A teammate'
         let sent = 0
         for (const snap of await db.getAll(...ids.map((id) => db.doc(`notification/${id}`)))) {
@@ -214,7 +235,7 @@ export default async function handler(req: Req, res: Res) {
           if (!n || n.actorId !== caller.uid || n.emailedAt || !(age >= -60_000 && age <= 15 * 60_000)) continue
           if (typeof n.itemId !== 'string' || typeof n.boardId !== 'string') continue // email only about real items
           const [profile, member, item, b] = await db.getAll(db.doc(`user/${n.userId}`), db.doc(`members/${n.userId}`), db.doc(`item/${n.itemId}`), db.doc(`board/${n.boardId}`))
-          const to = profile.get('email') as string | undefined
+          const to = member.get('notifyEmail') as string | undefined // only ever a confirmed address
           if (!member.exists || !profile.get('emailNotify') || !to || !EMAIL_RE.test(to)) continue
           if (!item.exists || !b.exists || item.get('boardId') !== n.boardId) continue
           if (!canSeeBoard(b.get('readers'), n.userId, member.get('role') === 'admin')) continue
@@ -225,19 +246,56 @@ export default async function handler(req: Req, res: Res) {
           const link = `${APP_URL}#/board/${encodeURIComponent(n.boardId)}`
           const headline = `${actor} updated “${itemName}”`.slice(0, 160)
           const { html, text } = render(headline, `There is something new for you on “${itemName}” in ${boardName}. Open Cue to see it and reply.`, link)
-          await m.sendMail({ from, to, subject: headline, html, text })
-          await snap.ref.update({ emailedAt: Date.now() })
+          await snap.ref.update({ emailedAt: Date.now() }) // mark first so a retry never sends twice
+          await send({ to, subject: headline, html, text })
           sent++
         }
         return res.status(200).json({ sent })
       }
       case 'test': {
-        const to = (await db.doc(`user/${caller.uid}`).get()).get('email') as string | undefined
-        if (!to || !EMAIL_RE.test(to)) fail(400, 'Add your email to your profile first')
-        const { mailer: m, from } = mail()
+        const to = me.get('notifyEmail') as string | undefined
+        if (!to) fail(400, 'Connect your email first')
         const { html, text } = render('Email notifications are working', 'You will get an email when someone assigns you, mentions you or replies to you in Cue.', APP_URL)
-        await m.sendMail({ from, to, subject: 'Cue: email notifications are on', html, text }).catch((e: Error) => fail(502, 'The mail server refused the message: ' + e.message.slice(0, 120)))
+        await send({ to: to!, subject: 'Cue: email notifications are on', html, text })
         return res.status(200).json({ to })
+      }
+      case 'email-start': {
+        const email = str(body.email, 'email', 254).toLowerCase()
+        if (!EMAIL_RE.test(email)) fail(400, 'That does not look like an email address')
+        const ref = db.doc(`emailCodes/${caller.uid}`)
+        const prev = await ref.get()
+        if (prev.exists && Date.now() - Number(prev.get('sentAt')) < 45_000) fail(429, 'A code was just sent. Wait a moment before asking for another.')
+        const code = String(randomInt(0, 1_000_000)).padStart(6, '0')
+        await ref.set({ email, hash: hashCode(caller.uid, code), sentAt: Date.now(), tries: 0 })
+        const { html, text } = render('Your Cue confirmation code', 'Type this code in Cue to connect this email address. It works for 15 minutes.', APP_URL, code)
+        await send({ to: email, subject: `${code} is your Cue confirmation code`, html, text })
+        return res.status(200).json({ ok: true })
+      }
+      case 'email-confirm': {
+        const ref = db.doc(`emailCodes/${caller.uid}`)
+        const pending = await ref.get()
+        if (!pending.exists) fail(400, 'Ask for a new code first')
+        if (Date.now() - Number(pending.get('sentAt')) > 15 * 60_000) (await ref.delete(), fail(400, 'That code has expired. Ask for a new one.'))
+        if (Number(pending.get('tries')) >= 5) (await ref.delete(), fail(429, 'Too many wrong codes. Ask for a new one.'))
+        const code = String(body.code ?? '').replace(/\D/g, '')
+        if (hashCode(caller.uid, code) !== pending.get('hash')) {
+          await ref.update({ tries: FieldValue.increment(1) })
+          fail(400, 'That code is not right. Check the email and try again.')
+        }
+        const email = pending.get('email') as string
+        const batch = db.batch()
+        batch.update(db.doc(`members/${caller.uid}`), { notifyEmail: email })
+        batch.set(db.doc(`user/${caller.uid}`), { email, emailNotify: true }, { merge: true })
+        batch.delete(ref)
+        await batch.commit()
+        return res.status(200).json({ email })
+      }
+      case 'email-remove': {
+        const batch = db.batch()
+        batch.update(db.doc(`members/${caller.uid}`), { notifyEmail: FieldValue.delete() })
+        batch.set(db.doc(`user/${caller.uid}`), { email: FieldValue.delete(), emailNotify: false }, { merge: true })
+        await batch.commit()
+        return res.status(200).json({ ok: true })
       }
       default:
         fail(400, 'Unknown action')
