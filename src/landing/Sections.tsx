@@ -276,7 +276,7 @@ const STEPS: { title: string; text: ReactNode; code: string }[] = [
   {
     title: 'Get the code',
     text: 'Clone the repository and start it. With no backend configured, Cue runs in local mode and keeps boards in your browser.',
-    code: 'git clone https://github.com/youssef-110/tideline.git cue\ncd cue\nnpm install\nnpm run dev',
+    code: 'git clone https://github.com/youssef-110/cue.git cue\ncd cue\nnpm install\nnpm run dev',
   },
   {
     title: 'Connect your own Firebase',

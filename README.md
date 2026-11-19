@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://youssef-110.github.io/tideline/">Website</a>
+  <a href="https://youssef-110.github.io/cue/">Website</a>
 </p>
 
 ---

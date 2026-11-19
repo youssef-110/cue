@@ -69,7 +69,7 @@ const role = (v: unknown) => ((ROLES as readonly string[]).includes(v as string)
 
 // ---------- email ----------
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const APP_URL = process.env.APP_URL || 'https://youssef-110.github.io/tideline/app.html'
+const APP_URL = process.env.APP_URL || 'https://youssef-110.github.io/cue/app.html'
 const esc = (t: string) => t.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
 type Mail = { to: string; subject: string; html: string; text: string }
 let mailer: nodemailer.Transporter | null = null

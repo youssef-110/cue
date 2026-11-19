@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import cx from 'clsx'
 
-export const REPO_URL = 'https://github.com/youssef-110/tideline'
+export const REPO_URL = 'https://github.com/youssef-110/cue'
 export const APP_URL = './app.html'
 
 /** Page column: 16px gutter on phones, wider on desktop. */
