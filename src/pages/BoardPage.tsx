@@ -162,10 +162,10 @@ export function BoardPage({ boardId, viewId }: { boardId: string; viewId?: strin
           <div className="caps flex min-w-0 flex-1 items-center gap-2 text-[12.5px] font-semibold tracking-[0.12em]">
             <BoardIconPicker value={board.icon ?? '📋'} onChange={(icon) => updateBoard(board.id, { icon })} disabled={!editable} />
             <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-2">
-              <button onClick={() => navigate({ page: 'home' })} className="truncate text-on-signal/80 transition-colors hover:text-on-signal hover:underline">
+              <button onClick={() => navigate({ page: 'home' })} className="hidden truncate text-on-signal/80 transition-colors hover:text-on-signal hover:underline sm:inline">
                 {workspace?.name ?? 'Workspace'}
               </button>
-              <span aria-hidden className="text-on-signal/60">/</span>
+              <span aria-hidden className="hidden text-on-signal/60 sm:inline">/</span>
               <span aria-current="page" className="truncate">{board.name}</span>
             </nav>
             {!editable && (

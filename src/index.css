@@ -149,7 +149,7 @@ select {
 /* ink-filled tags (P0, Critical) would vanish on the dark ground: give them a hairline edge */
 .dark [style*='background: rgb(18, 18, 18)'],
 .dark [style*='background-color: rgb(18, 18, 18)'] {
-  box-shadow: inset 0 0 0 1px var(--line-strong);
+  box-shadow: inset 0 0 0 1px var(--muted);
 }
 
 /* condensed caps: the timetable voice for titles and headers */
