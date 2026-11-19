@@ -9,6 +9,10 @@
   Boards, timelines, dashboards and automations. Free forever, every seat.
 </p>
 
+<p align="center">
+  <a href="https://youssef-110.github.io/tideline/">Website</a> · <a href="https://youssef-110.github.io/tideline/app.html">Open the app</a>
+</p>
+
 ---
 
 Tideline is a team work OS you host yourself. Plan projects on boards with typed columns, look at the same work as a table, a Kanban board, a Gantt timeline, a calendar or a dashboard, and let simple automations handle the busywork. Run it in your browser with zero setup, or connect a free Firebase project to work together in realtime.
