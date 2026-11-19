@@ -68,6 +68,8 @@ create policy "team update" on public.docs for update to authenticated
 -- Ownership fields can never be rewritten, and a row can't change its kind.
 create or replace function public.docs_guard() returns trigger
 language plpgsql as $$
+declare
+  changed text[];
 begin
   if new.id is distinct from old.id or new.kind is distinct from old.kind then
     raise exception 'docs: id and kind are immutable';
@@ -78,10 +80,19 @@ begin
   or new.data ->> 'createdBy' is distinct from old.data ->> 'createdBy' then
     raise exception 'docs: ownership fields are immutable';
   end if;
-  -- other people may only change the likes on a comment
-  if new.kind = 'update' and old.data ->> 'authorId' <> auth.uid()::text
-     and ((new.data - 'likes') is distinct from (old.data - 'likes') or new.deleted is distinct from old.deleted) then
-    raise exception 'docs: only the author can edit a comment';
+  -- other people may only add or remove their own like on a comment
+  if new.kind = 'update' and old.data ->> 'authorId' is distinct from auth.uid()::text then
+    if (new.data - 'likes') is distinct from (old.data - 'likes') or new.deleted is distinct from old.deleted then
+      raise exception 'docs: only the author can edit a comment';
+    end if;
+    select coalesce(array_agg(x), '{}') into changed from (
+      (select jsonb_array_elements_text(coalesce(new.data -> 'likes', '[]')) except select jsonb_array_elements_text(coalesce(old.data -> 'likes', '[]')))
+      union
+      (select jsonb_array_elements_text(coalesce(old.data -> 'likes', '[]')) except select jsonb_array_elements_text(coalesce(new.data -> 'likes', '[]')))
+    ) d(x);
+    if changed <> '{}' and changed <> array[auth.uid()::text] then
+      raise exception 'docs: you can only change your own like';
+    end if;
   end if;
   return new;
 end $$;

@@ -29,10 +29,8 @@ export function parseCSV(text: string): string[][] {
 
 // Prefix cells that spreadsheets would run as formulas (=, +, -, @, tab, CR).
 const neutralize = (s: string) => (/^[=+\-@\t\r]/.test(s) && !/^-?\d+(\.\d+)?$/.test(s) ? "'" + s : s)
-const esc = (raw: string) => {
-  const s = neutralize(raw)
-  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
-}
+// Always quote, so `;` or tab separators (other locales) can't split a cell open.
+const esc = (raw: string) => `"${neutralize(raw).replace(/"/g, '""')}"`
 
 export function exportBoardCSV(board: Board) {
   const users = useStore.getState().user
