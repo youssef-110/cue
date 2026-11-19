@@ -57,6 +57,14 @@ export function useMembers() {
   return list
 }
 
+/** Live view of my own membership: role changes apply at once, removal signs me out (cb gets null). */
+export const watchMyMembership = (uid: string, cb: (m: Member | null) => void) =>
+  onSnapshot(
+    doc(db!, 'members', uid),
+    (s) => cb(s.exists() ? (s.data() as Member) : null),
+    (e) => e.code === 'permission-denied' && cb(null), // other errors are transient: keep the session
+  )
+
 export const clearPasswordFlag = () => updateDoc(doc(db!, 'members', auth!.currentUser!.uid), { mustChangePassword: false })
 
 // ---------- admin server (creates accounts, resets passwords) ----------

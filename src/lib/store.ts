@@ -13,6 +13,7 @@ export type Route =
   | { page: 'dashboards'; id?: string }
   | { page: 'archive' }
   | { page: 'doc'; id: string }
+  | { page: 'help' }
 
 interface State extends Snapshot {
   ready: boolean
@@ -50,6 +51,7 @@ function parseHash(): Route {
   if (page === 'archive') return { page: 'archive' }
   if (page === 'my-work') return { page: 'my-work' }
   if (page === 'inbox') return { page: 'inbox' }
+  if (page === 'help') return { page: 'help' }
   return { page: 'home' }
 }
 export function navigate(route: Route) {
@@ -124,7 +126,7 @@ export function bootstrap(me: User, withDemo: boolean) {
     const { board, items } = TEMPLATES.find((t) => t.id === tid)!.build(ws.id, people)
     board.order = i
     put('board', board)
-    items.forEach((it) => put('item', it))
+    if (withDemo) items.forEach((it) => put('item', it)) // real teams start with an empty board
     first ||= board.id
   })
   navigate({ page: 'board', boardId: first })

@@ -3,9 +3,9 @@ import { AnimatePresence, motion } from 'motion/react'
 import { Toaster, toast } from 'sonner'
 import { useShallow } from 'zustand/react/shallow'
 import { checkDateAutomations, init, openItem, setPalette, setTheme, useStore } from './lib/store'
-import { onAuthStateChanged } from 'firebase/auth'
+import { onAuthStateChanged, signOut } from 'firebase/auth'
 import { auth, cloudAdapter, db, localAdapter } from './lib/sync'
-import { checkAccess } from './lib/team'
+import { checkAccess, watchMyMembership } from './lib/team'
 import { Sidebar } from './components/Sidebar'
 import { ItemPanel } from './components/ItemPanel'
 import { CommandPalette } from './components/CommandPalette'
@@ -16,6 +16,9 @@ import { Inbox } from './pages/Inbox'
 import { Home } from './pages/Home'
 import { ArchivePage } from './pages/ArchivePage'
 import { DocPage } from './pages/DocPage'
+import { HelpPage } from './pages/Help'
+import { Tour } from './components/Tour'
+import { ROLE_LABEL } from './components/Roles'
 // recharts-heavy, loaded on demand
 const Dashboards = lazy(() => import('./pages/Dashboards').then((m) => ({ default: m.Dashboards })))
 
@@ -36,7 +39,9 @@ export default function App() {
       init(localAdapter(), localStorage.getItem(LOCAL_ME) ?? '')
       return
     }
-    return onAuthStateChanged(auth, async (u) => {
+    let unwatch = () => {}
+    const off = onAuthStateChanged(auth, async (u) => {
+      unwatch()
       if (!u) return setSession('out')
       try {
         const access = await checkAccess()
@@ -45,10 +50,18 @@ export default function App() {
         useStore.setState({ isAdmin: access.member.role === 'admin', role: access.member.role })
         if (!useStore.getState().ready) await init(cloudAdapter(db!, u.uid), u.uid)
         setSession('in')
+        // role changes by an admin apply live; removal signs this person out
+        unwatch = watchMyMembership(u.uid, (m) => {
+          if (!m) return void signOut(auth!).then(() => location.reload())
+          if (m.role === useStore.getState().role) return
+          useStore.setState({ isAdmin: m.role === 'admin', role: m.role })
+          toast(`Your role is now ${ROLE_LABEL[m.role]}`)
+        })
       } catch (e) {
         toast.error('Could not load your team data: ' + (e as Error).message)
       }
     })
+    return () => (unwatch(), off())
   }, [])
 
   useEffect(() => {
@@ -113,6 +126,8 @@ export default function App() {
                 <Inbox />
               ) : route.page === 'archive' ? (
                 <ArchivePage />
+              ) : route.page === 'help' ? (
+                <HelpPage />
               ) : route.page === 'doc' ? (
                 <DocPage id={route.id} />
               ) : route.page === 'dashboards' ? (
@@ -127,6 +142,7 @@ export default function App() {
         </main>
         <ItemPanel />
         <CommandPalette />
+        <Tour />
       </div>
     )
 

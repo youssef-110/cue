@@ -336,7 +336,7 @@ export function Onboarding({ localKey }: { localKey: string }) {
             ))}
           </div>
         </fieldset>
-        {empty && (
+        {empty && !auth && (
           <label className="flex cursor-pointer items-start gap-3 rounded-md border border-line p-3 text-[13.5px] hover:bg-hover">
             <input type="checkbox" checked={demo} onChange={(e) => setDemo(e.target.checked)} className="mt-0.5 size-4" />
             <span>

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import {
   Briefcase,
@@ -23,6 +23,7 @@ import {
   Archive,
   FileText,
   LayoutDashboard,
+  LifeBuoy,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { archiveBoard, createDoc, createWorkspace, deleteBoard, duplicateBoard, isLive, navigate, setPalette, setTheme, updateBoard, useCanEdit, useStore } from '../lib/store'
@@ -53,6 +54,11 @@ export function Sidebar() {
   const unread = useStore((s) => Object.values(s.notification).filter((n) => n.userId === meId && !n.read).length)
   const [templateFor, setTemplateFor] = useState<string | null>(null)
   const [teamOpen, setTeamOpen] = useState(false)
+  useEffect(() => {
+    const open = () => setTeamOpen(true)
+    addEventListener('cue:open-team', open)
+    return () => removeEventListener('cue:open-team', open)
+  }, [])
   const [favs] = useFavorites()
   const fileRef = useRef<HTMLInputElement>(null)
   const importWs = useRef('')
@@ -60,9 +66,10 @@ export function Sidebar() {
   const wsList = useMemo(() => Object.values(workspaces).sort((a, b) => a.order - b.order), [workspaces])
   const toggle = () => (setCollapsed(!collapsed), localStorage.setItem('tideline:sidebar', collapsed ? '0' : '1'))
 
-  const nav = (page: 'home' | 'my-work' | 'inbox' | 'dashboards' | 'archive', icon: React.ReactNode, label: string, badge?: number) => (
+  const nav = (page: 'home' | 'my-work' | 'inbox' | 'dashboards' | 'archive' | 'help', icon: React.ReactNode, label: string, badge?: number) => (
     <button
       onClick={() => navigate({ page })}
+      data-tour={page}
       title={label}
       aria-current={route.page === page ? 'page' : undefined}
       className={cx(
@@ -106,6 +113,7 @@ export function Sidebar() {
       <div className="px-3">
         <button
           onClick={() => setPalette(true)}
+          data-tour="search"
           title="Search or jump to (Ctrl K)"
           className="mb-3 flex h-9 w-full items-center gap-2 rounded-md border border-on-ink/15 px-2.5 text-[13px] text-on-ink-muted transition-colors hover:border-on-ink/30 hover:text-on-ink"
         >
@@ -123,14 +131,15 @@ export function Sidebar() {
         {nav('dashboards', <LayoutDashboard />, 'Dashboards')}
         {nav('archive', <Archive />, 'Archive & Trash')}
         {auth && (
-          <button onClick={() => setTeamOpen(true)} title="Team" className={cx('flex h-9 w-full items-center gap-2.5 rounded-md px-2.5 text-[14px] transition-colors [&>svg]:size-[17px] [&>svg]:shrink-0', RAIL_OFF)}>
+          <button onClick={() => setTeamOpen(true)} data-tour="team" title="Team" className={cx('flex h-9 w-full items-center gap-2.5 rounded-md px-2.5 text-[14px] transition-colors [&>svg]:size-[17px] [&>svg]:shrink-0', RAIL_OFF)}>
             <Users />
             {!collapsed && <span className="flex-1 text-left">Team</span>}
           </button>
         )}
+        {nav('help', <LifeBuoy />, 'Help')}
       </div>
 
-      <div className="mt-4 min-h-0 flex-1 overflow-y-auto px-3 pb-4 [scrollbar-color:var(--on-ink-muted)_transparent]">
+      <div data-tour="boards" className="mt-4 min-h-0 flex-1 overflow-y-auto px-3 pb-4 [scrollbar-color:var(--on-ink-muted)_transparent]">
         {favs.length > 0 && !collapsed && (
           <Section title="Favorites" icon={<Star className="size-3" />}>
             {favs.map((id) => isLive(boards[id]) && <BoardLink key={id} id={id} collapsed={collapsed} />)}
@@ -172,7 +181,7 @@ export function Sidebar() {
                   </button>
                 ))}
             {!collapsed && editable && (
-              <div className="mt-1 flex gap-0.5">
+              <div data-tour="new-board" className="mt-1 flex gap-0.5">
                 <button onClick={() => setTemplateFor(ws.id)} className={cx('flex h-8 flex-1 items-center gap-1.5 whitespace-nowrap px-2', RAIL_QUIET)}>
                   <Plus className="size-3.5" /> Board
                 </button>

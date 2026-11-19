@@ -7,13 +7,8 @@ import { auth } from '../lib/sync'
 import { useStore } from '../lib/store'
 import { Modal } from './TemplateModal'
 import { Button, cx } from './ui'
+import { ROLES, ROLE_HINT, ROLE_LABEL, RoleMatrix } from './Roles'
 
-const ROLE_LABEL: Record<Role, string> = { admin: 'Admin', member: 'Member', viewer: 'Viewer' }
-const ROLE_HINT: Record<Role, string> = {
-  admin: 'Edits everything and manages logins',
-  member: 'Edits boards and items',
-  viewer: 'Reads and comments only',
-}
 const field = 'h-9 min-w-0 rounded-md border border-line bg-panel px-3 text-[14px] text-fg outline-none placeholder:text-faint focus:border-accent focus:ring-1 focus:ring-accent'
 const head = 'caps h-9 px-3 text-left text-[12px] font-semibold tracking-[0.14em] text-fg'
 
@@ -113,7 +108,7 @@ export function TeamModal({ open, onClose }: { open: boolean; onClose: () => voi
                 className={cx(field, 'font-mono text-[13px]')}
               />
               <select value={role} onChange={(e) => setNewRole(e.target.value as Role)} aria-label="Role" title={ROLE_HINT[role]} className={field}>
-                {(['member', 'viewer', 'admin'] as Role[]).map((r) => (
+                {(['member', 'viewer', 'admin'] as const).map((r) => (
                   <option key={r} value={r}>
                     {ROLE_LABEL[r]}
                   </option>
@@ -155,10 +150,13 @@ export function TeamModal({ open, onClose }: { open: boolean; onClose: () => voi
                           value={m.role}
                           aria-label={`Role for ${m.name}`}
                           title={ROLE_HINT[m.role]}
-                          onChange={(e) => run(m.uid, () => setRole(m.uid, e.target.value as Role))}
+                          onChange={(e) => {
+                            const r = e.target.value as Role
+                            run(m.uid, () => setRole(m.uid, r).then(() => toast.success(`${m.name} is now ${ROLE_LABEL[r].toLowerCase()}`)))
+                          }}
                           className="h-8 rounded-md border border-line bg-panel px-2 text-[13px] text-fg outline-none focus:border-accent focus:ring-1 focus:ring-accent"
                         >
-                          {(['admin', 'member', 'viewer'] as Role[]).map((r) => (
+                          {ROLES.map((r) => (
                             <option key={r} value={r}>
                               {ROLE_LABEL[r]}
                             </option>
@@ -199,6 +197,13 @@ export function TeamModal({ open, onClose }: { open: boolean; onClose: () => voi
           </table>
         </div>
         {!isAdmin && <p className="mt-4 text-[13px] text-faint">Only admins can create logins or reset passwords.</p>}
+        <details className="group mt-6">
+          <summary className="caps cursor-pointer select-none text-[13px] font-semibold tracking-[0.12em] text-muted hover:text-fg">What each role can do</summary>
+          <div className="mt-3">
+            <RoleMatrix />
+            <p className="mt-2 text-[12.5px] text-faint">Role changes apply straight away, even if the person is signed in. You can't change your own role, so a workspace always keeps an admin.</p>
+          </div>
+        </details>
       </div>
     </Modal>
   )

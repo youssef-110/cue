@@ -1,6 +1,6 @@
 import { Command } from 'cmdk'
 import { AnimatePresence, motion } from 'motion/react'
-import { Archive, Briefcase, House, Inbox, LayoutDashboard, Moon, Plus, Search, Sun, CornerDownLeft, Table2 } from 'lucide-react'
+import { Archive, LifeBuoy, Briefcase, House, Inbox, LayoutDashboard, Moon, Plus, Search, Sun, CornerDownLeft, Table2 } from 'lucide-react'
 import { addItem, createBoardFromTemplate, isLive, liveGroups, navigate, openItem, setPalette, setTheme, useCanEdit, useStore, visibleItem } from '../lib/store'
 import { TEMPLATES } from '../lib/seed'
 import { Kbd } from './ui'
@@ -59,6 +59,7 @@ export function CommandPalette() {
                   <Command.Item className={itemCls} onSelect={run(() => navigate({ page: 'inbox' }))}><Inbox /> Inbox</Command.Item>
                   <Command.Item className={itemCls} onSelect={run(() => navigate({ page: 'dashboards' }))}><LayoutDashboard /> Dashboards</Command.Item>
                   <Command.Item className={itemCls} onSelect={run(() => navigate({ page: 'archive' }))}><Archive /> Archive &amp; Trash</Command.Item>
+                  <Command.Item className={itemCls} onSelect={run(() => navigate({ page: 'help' }))}><LifeBuoy /> Help</Command.Item>
                   {Object.values(boards).filter(isLive).map((b) => (
                     <Command.Item key={b.id} value={`board ${b.name} ${b.id}`} className={itemCls} onSelect={run(() => navigate({ page: 'board', boardId: b.id }))}>
                       <Table2 /> {b.name}
