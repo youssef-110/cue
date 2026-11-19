@@ -74,11 +74,12 @@ export function HeroBoard() {
 
   return (
     <div ref={ref} className="board">
-      <p className="sr-only">An example departure board of team tasks, with departure times, the board each task is on, its owner and its status.</p>
+      <p className="sr-only">A sample departure board of example team tasks (not real data), with departure times, the board each task is on, its owner and its status.</p>
       <div aria-hidden="true">
         <div className="board-head">
           <span className="caps text-[22px] leading-none font-bold tracking-[0.06em] text-signal sm:text-[26px]">Departures</span>
           <span className="board-sub caps">Deep Echo · team workspace</span>
+          <span className="rounded-sm border border-[var(--board-mute)] px-1.5 py-px font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--board-mute)]">Sample board</span>
           <span className="ml-auto font-mono text-[13px] text-[var(--board-mute)]">
             {clock.day} <span className="text-[var(--board-text)]">{clock.time}</span>
           </span>

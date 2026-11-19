@@ -139,6 +139,13 @@ select {
   accent-color: var(--accent);
 }
 
+/* dark mode: the yellow band becomes a lit departure board, ink ground with signal-yellow type (~13:1).
+   Overrides the theme colours (not --signal) because descendants inherit --color-* already resolved. */
+.dark .band {
+  --color-signal: #0b0b0a;
+  --color-on-signal: #f6d11f;
+}
+
 /* ink-filled tags (P0, Critical) would vanish on the dark ground: give them a hairline edge */
 .dark [style*='background: rgb(18, 18, 18)'],
 .dark [style*='background-color: rgb(18, 18, 18)'] {

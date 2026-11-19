@@ -17,6 +17,8 @@ export const COLORS = {
   amber: '#f6d11f',
   lime: '#6e8f1e',
   slate: '#8a8a84',
+  graphite: '#3d3d39',
+  stone: '#c9c8bf',
   ink: '#121212',
 } as const
 export const COLOR_LIST: string[] = Object.values(COLORS)
@@ -48,9 +50,9 @@ export const statusLabels = () => [
 ]
 export const priorityLabels = () => [
   L('Critical', COLORS.ink),
-  L('High', COLORS.indigo),
-  L('Medium', COLORS.teal),
-  L('Low', COLORS.slate),
+  L('High', COLORS.graphite),
+  L('Medium', COLORS.slate),
+  L('Low', COLORS.stone),
 ]
 
 export interface Template {
@@ -115,7 +117,7 @@ export const TEMPLATES: Template[] = [
     description: 'Daily tasks with owners, priority, status and deadlines.',
     build(ws, users) {
       const status = col('status', 'Status', { labels: [L('Not started', COLORS.slate), L('In progress', COLORS.indigo), L('Blocked', COLORS.red), L('Completed', COLORS.amber, true)] })
-      const prio = col('priority', 'Priority', { labels: [L('P0', COLORS.ink), L('P1', COLORS.violet), L('P2', COLORS.indigo), L('P3', COLORS.sky)] })
+      const prio = col('priority', 'Priority', { labels: [L('P0', COLORS.ink), L('P1', COLORS.graphite), L('P2', COLORS.slate), L('P3', COLORS.stone)] })
       const owner = col('people', 'Owner')
       const collab = col('people', 'Collaborator')
       const deadline = col('date', 'Deadline')
@@ -123,12 +125,12 @@ export const TEMPLATES: Template[] = [
       const doc = col('link', 'Doc link')
       const s = status.labels!
       const p = prio.labels!
-      const groups = [grp('This week', COLORS.indigo), grp('Next up', COLORS.teal), grp('Done', COLORS.green)]
+      const groups = [grp('This week', COLORS.sky), grp('Next up', COLORS.teal), grp('Done', COLORS.green)]
       const rows: Row[][] = [
         [
           ['Prepare investor FAQ', { [status.id]: s[1].id, [prio.id]: p[1].id, [owner.id]: pick(users, 0), [deadline.id]: dayOffset(2) }],
           ['Collect outstanding invoices', { [status.id]: s[0].id, [prio.id]: p[1].id, [owner.id]: pick(users, 1), [deadline.id]: dayOffset(4) }],
-          ['Book requirements call with new partner', { [status.id]: s[2].id, [prio.id]: p[0].id, [owner.id]: pick(users, 0), [collab.id]: pick(users, 1), [deadline.id]: dayOffset(1), [notes.id]: 'Waiting on their availability' }],
+          ['Book requirements call with new partner', { [status.id]: s[2].id, [prio.id]: p[0].id, [owner.id]: pick(users, 0), [collab.id]: pick(users, 1), [deadline.id]: dayOffset(-2), [notes.id]: 'Waiting on their availability' }],
         ],
         [
           ['Follow-up emails to EU media leads', { [status.id]: s[0].id, [prio.id]: p[2].id, [owner.id]: pick(users, 1), [deadline.id]: dayOffset(9) }],
@@ -136,7 +138,7 @@ export const TEMPLATES: Template[] = [
         ],
         [['Investor pitch deck v2', { [status.id]: s[3].id, [prio.id]: p[0].id, [owner.id]: pick(users, 1), [deadline.id]: dayOffset(-3), [doc.id]: 'https://example.com/deck' }]],
       ]
-      return assemble(ws, 'Team tasks', '✅', this.description, [owner, collab, status, prio, deadline, notes, doc], groups, rows, [status.id, deadline.id], users[0]?.id ?? '')
+      return assemble(ws, 'Team tasks', '✅', this.description, [deadline, owner, collab, status, prio, notes, doc], groups, rows, [status.id, deadline.id], users[0]?.id ?? '')
     },
   },
   {
@@ -145,26 +147,26 @@ export const TEMPLATES: Template[] = [
     icon: '💼',
     description: 'Track every deal from discovery call to paying customer.',
     build(ws, users) {
-      const stage = col('status', 'Stage', { labels: [L('Discovery call', COLORS.sky), L('LOI to sign', COLORS.violet), L('Negotiation', COLORS.orange), L('Paying', COLORS.amber, true), L('On hold', COLORS.slate)] })
+      const stage = col('status', 'Stage', { labels: [L('Discovery call', COLORS.sky), L('LOI to sign', COLORS.teal), L('Negotiation', COLORS.orange), L('Paying', COLORS.amber, true), L('On hold', COLORS.slate)] })
       const owner = col('people', 'Owner')
-      const segment = col('tags', 'Segment', { labels: [L('Broadcaster', COLORS.indigo), L('Streaming', COLORS.pink), L('Localisation', COLORS.teal), L('Software', COLORS.amber), L('Integrator', COLORS.lime)] })
+      const segment = col('tags', 'Segment', { labels: [L('Broadcaster', COLORS.green), L('Streaming', COLORS.pink), L('Localisation', COLORS.teal), L('Software', COLORS.amber), L('Integrator', COLORS.lime)] })
       const problem = col('text', 'Their problem', { width: 220 })
       const value = col('number', 'Monthly value', { unit: '€' })
       const next = col('text', 'Next step', { width: 200 })
       const close = col('date', 'Expected close')
       const s = stage.labels!
       const g = segment.labels!
-      const groups = [grp('Active deals', COLORS.violet), grp('Won', COLORS.green), grp('Parked', COLORS.slate)]
+      const groups = [grp('Active deals', COLORS.sky), grp('Won', COLORS.green), grp('Parked', COLORS.slate)]
       const rows: Row[][] = [
         [
           ['Northwind Media', { [stage.id]: s[1].id, [segment.id]: [g[1].id], [owner.id]: pick(users, 0), [value.id]: 1800, [close.id]: dayOffset(12), [problem.id]: 'Dialect transcription at scale' }],
           ['Contoso Studios', { [stage.id]: s[0].id, [segment.id]: [g[3].id], [owner.id]: pick(users, 1), [value.id]: 900, [close.id]: dayOffset(30), [next.id]: 'Scope the integration' }],
-          ['Fabrikam Broadcast', { [stage.id]: s[2].id, [segment.id]: [g[0].id], [owner.id]: pick(users, 0), [value.id]: 3200, [close.id]: dayOffset(7) }],
+          ['Fabrikam Broadcast', { [stage.id]: s[2].id, [segment.id]: [g[0].id], [owner.id]: pick(users, 0), [value.id]: 3200, [close.id]: dayOffset(-3), [next.id]: 'Chase signed terms' }],
         ],
         [['Litware Radio', { [stage.id]: s[3].id, [segment.id]: [g[0].id], [owner.id]: pick(users, 1), [value.id]: 2600, [close.id]: dayOffset(-20) }]],
         [['Adatum Events', { [stage.id]: s[4].id, [segment.id]: [g[4].id], [owner.id]: pick(users, 2), [value.id]: 500, [next.id]: 'Revisit next quarter' }]],
       ]
-      return assemble(ws, 'Sales pipeline', '💼', this.description, [owner, stage, segment, value, close, problem, next], groups, rows, [stage.id, close.id], users[0]?.id ?? '')
+      return assemble(ws, 'Sales pipeline', '💼', this.description, [close, owner, stage, segment, value, problem, next], groups, rows, [stage.id, close.id], users[0]?.id ?? '')
     },
   },
   {
@@ -181,7 +183,7 @@ export const TEMPLATES: Template[] = [
       const effort = col('number', 'Effort', { unit: 'pts' })
       const s = status.labels!
       const p = prio.labels!
-      const groups = [grp('Q1 — Foundations', COLORS.indigo), grp('Q2 — Scale', COLORS.pink)]
+      const groups = [grp('Q1 — Foundations', COLORS.sky), grp('Q2 — Scale', COLORS.pink)]
       const rows: Row[][] = [
         [
           ['Realtime transcription API', { [status.id]: s[1].id, [prio.id]: p[0].id, [owner.id]: pick(users, 0), [tl.id]: { start: dayOffset(-10), end: dayOffset(12) }, [prog.id]: 55, [effort.id]: 13 }],
@@ -193,7 +195,7 @@ export const TEMPLATES: Template[] = [
           ['Editor plugin (MCP)', { [status.id]: s[2].id, [prio.id]: p[2].id, [owner.id]: pick(users, 1), [tl.id]: { start: dayOffset(14), end: dayOffset(40) }, [prog.id]: 20, [effort.id]: 8 }],
         ],
       ]
-      return assemble(ws, 'Product roadmap', '🚀', this.description, [owner, status, prio, tl, prog, effort], groups, rows, [status.id, undefined, tl.id], users[0]?.id ?? '')
+      return assemble(ws, 'Product roadmap', '🚀', this.description, [tl, owner, status, prio, prog, effort], groups, rows, [status.id, undefined, tl.id], users[0]?.id ?? '')
     },
   },
   {
@@ -202,8 +204,8 @@ export const TEMPLATES: Template[] = [
     icon: '📣',
     description: 'Plan posts across channels and ship on schedule.',
     build(ws, users) {
-      const status = col('status', 'Status', { labels: [L('Idea', COLORS.slate), L('Drafting', COLORS.orange), L('In review', COLORS.violet), L('Published', COLORS.amber, true)] })
-      const channel = col('tags', 'Channel', { labels: [L('LinkedIn', COLORS.sky), L('Blog', COLORS.indigo), L('Newsletter', COLORS.pink), L('Video', COLORS.red)] })
+      const status = col('status', 'Status', { labels: [L('Idea', COLORS.slate), L('Drafting', COLORS.orange), L('In review', COLORS.teal), L('Published', COLORS.amber, true)] })
+      const channel = col('tags', 'Channel', { labels: [L('LinkedIn', COLORS.sky), L('Blog', COLORS.green), L('Newsletter', COLORS.pink), L('Video', COLORS.orange)] })
       const owner = col('people', 'Owner')
       const date = col('date', 'Publish date')
       const rating = col('rating', 'Impact')
@@ -218,7 +220,7 @@ export const TEMPLATES: Template[] = [
         ],
         [['Behind the model: benchmark deep dive', { [status.id]: s[0].id, [channel.id]: [c[3].id], [rating.id]: 4 }]],
       ]
-      return assemble(ws, 'Content calendar', '📣', this.description, [owner, status, channel, date, rating], groups, rows, [status.id, date.id], users[0]?.id ?? '')
+      return assemble(ws, 'Content calendar', '📣', this.description, [date, owner, status, channel, rating], groups, rows, [status.id, date.id], users[0]?.id ?? '')
     },
   },
   {
@@ -230,8 +232,8 @@ export const TEMPLATES: Template[] = [
       const status = col('status', 'Status', { labels: statusLabels() })
       const owner = col('people', 'Owner')
       const date = col('date', 'Due date')
-      const groups = [grp('Group title', COLORS.indigo)]
-      return assemble(ws, 'New board', '✨', '', [owner, status, date], groups, [[['New item', {}]]], [status.id, date.id], users[0]?.id ?? '')
+      const groups = [grp('Group title', COLORS.sky)]
+      return assemble(ws, 'New board', '✨', '', [date, owner, status], groups, [[['New item', {}]]], [status.id, date.id], users[0]?.id ?? '')
     },
   },
 ]

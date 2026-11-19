@@ -34,11 +34,13 @@ Owned by the team that uses it: free for every seat, hosted on the team's own fr
 - Team mode on Firebase (Spark free plan, project `tideline-97832`, eur3): Firestore + Auth, access enforced by `firestore.rules`.
 - Admin-only account management: create username/password accounts, reset passwords, remove people. Requires a small server-side function because browsers cannot change another user's password.
 - Free-tier only: no paid storage, so file attachments are links, not uploads. No outbound email.
-- Open decision: product name (current working name "Tideline" is being replaced).
+- Name: **Cue** (chosen 2026-11-19, replacing the working name Tideline).
 
 ## Brand Commitments
 
-None binding yet. The current name, logo, palette and fonts are explicitly rejected by the owner as generic.
+- Name: Cue. Mark: a signal-yellow tile whose C is a clock face with its hand pointing into the gap (`src/components/ui.tsx` Logo, `public/favicon.svg`).
+- Visual world: "Departures" (European rail departure posters), chosen by the owner on 2026-11-19 through impeccable (seed a124ccaf). The earlier violet/teal gradient look was rejected as generic and must not return.
+- Accounts: usernames + passwords created by the admin; no public sign-up.
 
 ## Evidence on Hand
 

@@ -41,8 +41,12 @@ export function Avatar({ user, size = 26, ring }: { user?: User; size?: number; 
   return (
     <span
       title={user.name}
-      className={cx('inline-grid shrink-0 select-none place-items-center rounded-full font-semibold tracking-[0.02em]', ring && 'ring-2 ring-panel')}
-      style={{ width: size, height: size, fontSize: Math.round(size * 0.4), background: user.color, color: inkOn(user.color) }}
+      // neutral ink circle (no saturated user fills); in dark a raised panel circle with a hairline edge
+      className={cx(
+        'inline-grid shrink-0 select-none place-items-center rounded-full bg-ink font-semibold tracking-[0.02em] text-on-ink dark:bg-panel-2 dark:text-fg',
+        ring ? 'ring-2 ring-panel' : 'dark:ring-1 dark:ring-inset dark:ring-line-strong',
+      )}
+      style={{ width: size, height: size, fontSize: Math.round(size * 0.4) }}
     >
       {initials(user.name)}
     </span>

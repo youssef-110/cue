@@ -591,7 +591,7 @@ export function Summary({ col, items }: { col: Column; items: Item[] }) {
   }
   if (col.type === 'people') {
     const ids = new Set(items.flatMap((i) => (i.values[col.id] as string[]) ?? []))
-    return <span className="text-[12px] text-muted">{ids.size ? <><span className="font-mono">{ids.size}</span> people</> : ''}</span>
+    return <span className="text-[12px] text-muted">{ids.size ? <><span className="font-mono">{ids.size}</span> {ids.size === 1 ? 'person' : 'people'}</> : ''}</span>
   }
   if (col.type === 'time' || col.type === 'vote') {
     const total = items.reduce((a, i) => a + (col.type === 'time' ? timeTotal(i.values[col.id]) : ((i.values[col.id] as string[] | undefined) ?? []).length), 0)

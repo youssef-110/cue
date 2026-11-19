@@ -85,7 +85,7 @@ function PanelBody({ itemId }: { itemId: string }) {
   return (
     <>
       {/* yellow band: where the item sits, and its name */}
-      <div className="bg-signal px-6 pb-5 pt-3 text-on-signal">
+      <div className="band bg-signal px-6 pb-5 pt-3 text-on-signal">
         <div className="flex items-center gap-2">
           <nav aria-label="Item location" className="caps flex min-w-0 flex-1 items-center gap-2 text-[12.5px] font-semibold tracking-[0.12em]">
             <span className="truncate text-on-signal/80">{board.name}</span>

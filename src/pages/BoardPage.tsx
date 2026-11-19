@@ -51,6 +51,7 @@ const VIEW_META: Record<View['type'], { icon: typeof Table2; label: string }> = 
   chart: { icon: ChartPie, label: 'Dashboard' },
   workload: { icon: ChartColumnBig, label: 'Workload' },
 }
+const IN_PROGRESS = /progress|working|doing|review|drafting|negotiat/i
 const EMOJI = ['📋', '✅', '💼', '🚀', '📣', '🎯', '🧠', '🛠️', '📈', '💡', '🎨', '🔬', '🤝', '🗂️', '⚡', '🌊']
 
 // controls that sit on the yellow station sign
@@ -113,9 +114,10 @@ export function BoardPage({ boardId, viewId }: { boardId: string; viewId?: strin
     if (!board) return { total: 0, moving: 0, delayed: 0 }
     const live = Object.values(allItems).filter((i) => i.boardId === board.id && !i.parentId && visibleItem(i, { [board.id]: board }, allItems))
     const statusCols = board.columns.filter((c) => c.type === 'status')
+    // only labels that name a moving state count, e.g. "In progress", "Working on it", "In review"
     const moving = live.filter((i) => {
       const labels = statusCols.map((c) => labelOf(c, i.values[c.id])).filter(Boolean)
-      return labels.length > 0 && !labels.some((l) => l!.done)
+      return !labels.some((l) => l!.done) && labels.some((l) => IN_PROGRESS.test(l!.name))
     }).length
     return { total: live.length, moving, delayed: live.filter((i) => isDelayed(board, i)).length }
     // `now` re-runs the delay check when the day rolls over
@@ -155,8 +157,8 @@ export function BoardPage({ boardId, viewId }: { boardId: string; viewId?: strin
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {/* station sign */}
-      <header className="border-b-2 border-ink bg-signal px-8 pt-4 text-on-signal">
-        <div className="flex items-center gap-4">
+      <header className="band min-w-0 border-b-2 border-ink bg-signal px-4 pt-4 text-on-signal sm:px-8 dark:border-line-strong">
+        <div className="flex items-center gap-2 sm:gap-4">
           <div className="caps flex min-w-0 flex-1 items-center gap-2 text-[12.5px] font-semibold tracking-[0.12em]">
             <BoardIconPicker value={board.icon ?? '📋'} onChange={(icon) => updateBoard(board.id, { icon })} disabled={!editable} />
             <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-2">
@@ -174,7 +176,7 @@ export function BoardPage({ boardId, viewId }: { boardId: string; viewId?: strin
           </div>
           <div className="flex shrink-0 items-center gap-1">
             {members.length > 0 && (
-              <span className="mr-2">
+              <span className="mr-2 hidden sm:inline-flex">
                 <AvatarStack users={members} size={28} max={4} ringClass="ring-signal" />
               </span>
             )}
@@ -212,14 +214,14 @@ export function BoardPage({ boardId, viewId }: { boardId: string; viewId?: strin
             value={board.description ?? ''}
             placeholder="Add a board description"
             onCommit={(description) => updateBoard(board.id, { description })}
-            className="mt-0.5 inline-block max-w-[72ch] text-[14px] text-on-signal/80 hover:ring-on-signal/40"
+            className="mt-0.5 inline-block max-w-full !whitespace-normal break-words text-[14px] text-on-signal/80 hover:ring-on-signal/40 sm:max-w-[72ch]"
           />
         ) : (
-          board.description && <p className="mt-0.5 max-w-[72ch] truncate text-[14px] text-on-signal/80">{board.description}</p>
+          board.description && <p className="mt-0.5 max-w-full break-words text-[14px] text-on-signal/80 sm:max-w-[72ch]">{board.description}</p>
         )}
 
-        {/* view tabs sit on the sign's bottom edge; the active one joins the page below */}
-        <nav aria-label="Views" className="-mb-[2px] mt-4 flex items-end gap-0.5 overflow-x-auto">
+        {/* view tabs sit on the sign's bottom edge; the active one joins the page below; on narrow screens they scroll inside the band */}
+        <nav aria-label="Views" className="-mx-4 -mb-[2px] mt-4 flex items-end gap-0.5 overflow-x-auto overflow-y-hidden px-4 [scrollbar-width:none] sm:mx-0 sm:px-0">
           {board.views.map((v) => (
             <ViewTab key={v.id} boardId={board.id} view={v} active={!isDoc && v.id === view.id} canDelete={editable && board.views.length > 1} canEdit={editable} />
           ))}
@@ -235,7 +237,7 @@ export function BoardPage({ boardId, viewId }: { boardId: string; viewId?: strin
       ) : (
         <>
           {/* toolbar */}
-          <div className="flex flex-wrap items-center gap-2 px-8 py-4">
+          <div className="flex flex-wrap items-center gap-2 px-4 py-4 sm:px-8">
             {editable && (
               <Button variant="primary" onClick={() => dispatchEvent(new Event('tideline:new-item'))} title="New item (N)">
                 <Plus /> New item

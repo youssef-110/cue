@@ -3,7 +3,7 @@ import { motion } from 'motion/react'
 import { format } from 'date-fns'
 import { ArrowRight, Loader2 } from 'lucide-react'
 import { bootstrap, useStore } from '../lib/store'
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updatePassword } from 'firebase/auth'
+import { signInWithEmailAndPassword, signOut, updatePassword } from 'firebase/auth'
 import { auth } from '../lib/sync'
 import { USERNAME_RE, claimWorkspace, clearPasswordFlag, loginEmail, normalizeUsername, usernameOf } from '../lib/team'
 import { COLOR_LIST, uid } from '../lib/seed'
@@ -12,7 +12,7 @@ import { Button, Logo, cx } from '../components/ui'
 /** Station sign: the yellow band that carries the Cue name across the top of every auth screen. */
 function Sign() {
   return (
-    <header className="flex items-center justify-between border-b-2 border-on-signal bg-signal px-6 py-4 text-on-signal sm:px-10">
+    <header className="band flex items-center justify-between border-b-2 border-on-signal bg-signal px-6 py-4 text-on-signal sm:px-10">
       <span className="flex items-center gap-3">
         <Logo size={34} />
         <span className="font-display text-[34px] font-bold leading-none tracking-[0.01em]">Cue</span>
@@ -100,12 +100,15 @@ function Who() {
   return <span className="font-mono text-[13px] text-fg">{usernameOf(auth?.currentUser?.email)}</span>
 }
 
-/** Team mode: username + password accounts created by an admin. */
+/**
+ * Team mode: username + password accounts created by an admin.
+ * Browsers never create accounts (public sign-up is off in Firebase): the owner's
+ * login is added in the Firebase console, everyone else's from the Team screen.
+ */
 export function SignIn() {
-  const [mode, setMode] = useState<'in' | 'setup' | 'forgot'>('in')
+  const [mode, setMode] = useState<'in' | 'forgot'>('in')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [confirm, setConfirm] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const go = (m: typeof mode) => (setMode(m), setError(''))
@@ -116,12 +119,7 @@ export function SignIn() {
     setError('')
     setBusy(true)
     try {
-      if (mode === 'in') await signInWithEmailAndPassword(auth, loginEmail(u), password)
-      if (mode === 'setup') {
-        if (password.length < 8) throw Object.assign(new Error('weak'), { code: 'auth/weak-password' })
-        if (password !== confirm) throw new Error('The passwords don’t match.')
-        await createUserWithEmailAndPassword(auth, loginEmail(u), password)
-      }
+      await signInWithEmailAndPassword(auth, loginEmail(u), password)
     } catch (e) {
       setError(authMessage(e))
     }
@@ -129,15 +127,13 @@ export function SignIn() {
   }
   return (
     <Shell>
-      <Title>{mode === 'setup' ? 'Set up the owner' : mode === 'forgot' ? 'Forgot password' : 'Sign in'}</Title>
+      <Title>{mode === 'forgot' ? 'Forgot password' : 'Sign in'}</Title>
       <Lead>
-        {mode === 'setup'
-          ? 'One time only: the owner of a brand-new workspace creates their login here.'
-          : mode === 'forgot'
-            ? 'Your admin can set a new one for you from the Team screen. You’ll choose your own the next time you sign in.'
-            : 'Use the username and password your admin gave you.'}
+        {mode === 'forgot'
+          ? 'Your admin can set a new one for you from the Team screen. You’ll choose your own the next time you sign in.'
+          : 'Use the username and password your admin gave you.'}
       </Lead>
-      {mode !== 'forgot' && (
+      {mode === 'in' && (
         <form
           className="space-y-4"
           onSubmit={(e) => {
@@ -158,41 +154,30 @@ export function SignIn() {
               onChange={(e) => setUsername(e.target.value)}
             />
           </Field>
-          <Field label={mode === 'setup' ? 'Password (8+ characters)' : 'Password'}>
+          <Field label="Password">
             <input
               className={input}
               type="password"
               required
-              minLength={mode === 'setup' ? 8 : undefined}
-              autoComplete={mode === 'setup' ? 'new-password' : 'current-password'}
+              autoComplete="current-password"
               aria-label="Password"
               aria-invalid={!!error || undefined}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
           </Field>
-          {mode === 'setup' && (
-            <Field label="Repeat password">
-              <input className={input} type="password" required autoComplete="new-password" aria-label="Repeat password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
-            </Field>
-          )}
           <ErrorLine text={error} />
           <Button variant="primary" disabled={busy} className={primaryCls}>
-            {busy ? <Loader2 className="animate-spin" /> : mode === 'setup' ? 'Create owner account' : 'Sign in'}
+            {busy ? <Loader2 className="animate-spin" /> : 'Sign in'}
             {!busy && <ArrowRight />}
           </Button>
         </form>
       )}
       <div className="mt-6 flex justify-between border-t border-line pt-4 text-[13px]">
         {mode === 'in' ? (
-          <>
-            <button onClick={() => go('forgot')} className="text-muted hover:text-fg">
-              Forgot password
-            </button>
-            <button onClick={() => go('setup')} className="text-muted hover:text-fg">
-              New workspace setup
-            </button>
-          </>
+          <button onClick={() => go('forgot')} className="text-muted hover:text-fg">
+            Forgot password
+          </button>
         ) : (
           <button onClick={() => go('in')} className="text-accent hover:underline">
             Back to sign in

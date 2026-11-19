@@ -291,7 +291,7 @@ export function CalendarView({ board, items, view }: { board: Board; items: Item
       <DragOverlay dropAnimation={null}>
         {active && (
           <div
-            className={cx(TAG, 'w-48 cursor-grabbing py-1 shadow-[3px_4px_0_rgb(18_18_18/0.14),0_10px_22px_-8px_rgb(18_18_18/0.32)]', !colorOf(active) && TAG_NONE)}
+            className={cx(TAG, 'w-48 cursor-grabbing py-1 shadow-[0_10px_22px_-8px_rgb(18_18_18/0.32)]', !colorOf(active) && TAG_NONE)}
             style={tagStyle(colorOf(active))}
           >
             {active.name}

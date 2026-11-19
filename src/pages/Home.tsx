@@ -63,7 +63,7 @@ export function Home() {
 
   return (
     <div className="h-full overflow-y-auto">
-      <header className="border-b-2 border-on-signal bg-signal px-8 pb-4 pt-5 text-on-signal">
+      <header className="band border-b-2 border-on-signal bg-signal px-4 pb-4 pt-5 text-on-signal sm:px-8">
         <div className="mx-auto flex max-w-6xl flex-wrap items-end justify-between gap-x-8 gap-y-2">
           <h1 className="caps text-[36px] font-bold leading-[0.95]">
             {greet(now.getHours())}, {me?.name.split(' ')[0]}

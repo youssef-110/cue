@@ -217,10 +217,10 @@ export function TableView({ board, items, view }: { board: Board; items: Item[];
   const toggle = (id: string) => setSelected((s) => (s.has(id) ? (s.delete(id), new Set(s)) : new Set(s.add(id))))
 
   return (
-    <div className="relative h-full overflow-auto px-8 pb-24 pt-1">
-      <div className="sticky left-0 mb-2 flex w-fit items-center gap-1 text-[13px]">
+    <div className="relative h-full overflow-auto px-4 pb-24 pt-1 sm:px-8">
+      <div className="sticky left-0 mb-2 flex w-fit max-w-full flex-wrap items-center gap-1 text-[13px]">
         <label className="flex items-center gap-2">
-          <span className="caps text-[12px] font-semibold tracking-[0.12em] text-muted">Group by</span>
+          <span className="caps whitespace-nowrap text-[12px] font-semibold tracking-[0.12em] text-muted">Group by</span>
           <select
             aria-label="Group by"
             value={gbCol?.id ?? ''}
@@ -239,10 +239,10 @@ export function TableView({ board, items, view }: { board: Board; items: Item[];
           </select>
         </label>
         <span className="mx-2 h-5 w-px bg-line-strong" />
-        <button onClick={() => collapseAll(true)} className="flex h-8 items-center gap-1.5 rounded-md px-2.5 text-muted transition-colors hover:bg-hover hover:text-fg">
+        <button onClick={() => collapseAll(true)} className="flex h-8 items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 text-muted transition-colors hover:bg-hover hover:text-fg">
           <ChevronsDownUp className="size-4" /> Collapse all
         </button>
-        <button onClick={() => collapseAll(false)} className="flex h-8 items-center gap-1.5 rounded-md px-2.5 text-muted transition-colors hover:bg-hover hover:text-fg">
+        <button onClick={() => collapseAll(false)} className="flex h-8 items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 text-muted transition-colors hover:bg-hover hover:text-fg">
           <ChevronsUpDown className="size-4" /> Expand all
         </button>
       </div>
@@ -472,7 +472,7 @@ function ColumnHeader({ board, col, index, sort, setSort }: { board: Board; col:
           className="h-7 w-full rounded-sm bg-panel px-1 font-sans text-[13px] normal-case tracking-normal text-fg outline-none ring-2 ring-accent"
         />
       ) : (
-        <button onDoubleClick={() => editable && setRenaming(true)} onClick={() => setSort(sort === 0 ? 1 : sort === 1 ? -1 : 0)} className="flex min-w-0 items-center gap-1 truncate transition-colors hover:text-accent" title="Click to sort, double-click to rename">
+        <button onDoubleClick={() => editable && setRenaming(true)} onClick={() => setSort(sort === 0 ? 1 : sort === 1 ? -1 : 0)} className="flex min-w-0 items-center gap-1 truncate uppercase transition-colors hover:text-accent" title="Click to sort, double-click to rename">
           <span className="truncate">{col.title}</span>
           {sort === 1 && <ArrowUpNarrowWide className="size-3.5 shrink-0 text-accent" />}
           {sort === -1 && <ArrowDownNarrowWide className="size-3.5 shrink-0 text-accent" />}

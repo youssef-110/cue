@@ -154,6 +154,7 @@ const cache = new Map<string, Node>()
 /** Evaluate a formula. Throws FormulaError on syntax or runtime errors. Empty formula = null. */
 export function evaluate(src: string, resolve: Resolve): Val {
   if (!src.trim()) return null
+  if (src.length > 2000) fail('Formula is too long (2000 characters max)')
   let node = cache.get(src)
   if (!node) cache.set(src, (node = parse(src)))
   const v = node(resolve)
@@ -190,9 +191,32 @@ export function mirrorSource(board: Board, col: Column, item: Item, ctx: Ctx) {
   return { via, target, tcol, items: via && tcol ? linkedItems(via, item, ctx) : [] }
 }
 
+// One evaluation's bookkeeping: cycle stack, per-(item, column) memo and a hard work budget,
+// so chained formulas and mirrors can neither loop nor fan out exponentially.
+type Walk = { stack: Set<string>; memo: Map<string, Val>; budget: number }
+const MAX_LOOKUPS = 2000
+
 /** Scalar value of a cell as formulas see it (labels -> names, people -> names, time -> hours). */
-export function cellScalar(board: Board, col: Column, item: Item, ctx: Ctx, depth = 0): Val {
-  if (depth > 8) fail('Circular reference')
+export function cellScalar(board: Board, col: Column, item: Item, ctx: Ctx): Val {
+  return walk(board, col, item, ctx, { stack: new Set(), memo: new Map(), budget: MAX_LOOKUPS })
+}
+
+function walk(board: Board, col: Column, item: Item, ctx: Ctx, w: Walk): Val {
+  const key = item.id + ':' + col.id
+  if (w.memo.has(key)) return w.memo.get(key)!
+  if (w.stack.has(key)) fail('Circular reference')
+  if (--w.budget < 0) fail('Formula is too complex')
+  w.stack.add(key)
+  try {
+    const out = scalar(board, col, item, ctx, w)
+    w.memo.set(key, out)
+    return out
+  } finally {
+    w.stack.delete(key)
+  }
+}
+
+function scalar(board: Board, col: Column, item: Item, ctx: Ctx, w: Walk): Val {
   const v = item.values[col.id]
   const names = (ids: unknown, map: (id: string) => string | undefined) => ((ids as string[] | undefined) ?? []).map(map).filter(Boolean).join(', ') || null
   switch (col.type) {
@@ -225,12 +249,12 @@ export function cellScalar(board: Board, col: Column, item: Item, ctx: Ctx, dept
     case 'formula':
       return evaluate(col.formula ?? '', (name) => {
         const ref = board.columns.find((c) => c.title.toLowerCase() === name.toLowerCase())
-        if (ref) return cellScalar(board, ref, item, ctx, depth + 1)
+        if (ref) return walk(board, ref, item, ctx, w)
         return /^(name|item)$/i.test(name) ? item.name : fail(`Unknown column {${name}}`)
       })
     case 'mirror': {
       const m = mirrorSource(board, col, item, ctx)
-      return m.items.map((it) => str(cellScalar(m.target!, m.tcol!, it, ctx, depth + 1))).filter(Boolean).join(', ') || null
+      return m.items.map((it) => str(walk(m.target!, m.tcol!, it, ctx, w))).filter(Boolean).join(', ') || null
     }
     default:
       return v == null || v === '' ? null : typeof v === 'number' ? v : String(v)
@@ -272,5 +296,20 @@ export function selfTest() {
     }
     if (!threw) throw new Error(`formula selfTest: expected FormulaError for ${bad}`)
   }
+  // cycles fail fast; a wide fan-out of repeated refs is memoised instead of exploding
+  const f = (id: string, title: string, formula: string) => ({ id, title, type: 'formula' as const, formula })
+  const cyc = { columns: [f('a', 'A', '{B}'), f('b', 'B', '{A}')] } as unknown as Board
+  const it = { id: 'i', values: {} } as unknown as Item
+  const ctx: Ctx = { users: {}, items: {}, boards: {} }
+  let cycled = false
+  try {
+    cellScalar(cyc, cyc.columns[0], it, ctx)
+  } catch (e) {
+    cycled = e instanceof FormulaError
+  }
+  if (!cycled) throw new Error('formula selfTest: cycle not detected')
+  const chain = Array.from({ length: 40 }, (_, i) => f('c' + i, 'C' + i, i ? `{C${i - 1}} + {C${i - 1}}` : '1'))
+  const wide = { columns: chain } as unknown as Board
+  if (cellScalar(wide, chain[39], it, ctx) !== 2 ** 39) throw new Error('formula selfTest: memoised chain wrong')
 }
 if (import.meta.env?.DEV) selfTest()

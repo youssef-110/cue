@@ -257,7 +257,7 @@ export function KanbanView({ board, items, view }: { board: Board; items: Item[]
         </div>
         <DragOverlay dropAnimation={null}>
           {active && (
-            <div className="w-[272px] cursor-grabbing rounded-md border border-line-strong bg-panel p-3 shadow-[4px_5px_0_rgb(18_18_18/0.14),0_10px_22px_-8px_rgb(18_18_18/0.32)]">
+            <div className="w-[272px] cursor-grabbing rounded-md border border-line-strong bg-panel p-3 shadow-[0_10px_22px_-8px_rgb(18_18_18/0.32)]">
               <CardBody item={active} ctx={ctx} />
             </div>
           )}

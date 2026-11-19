@@ -104,7 +104,7 @@ Logins are usernames. Firebase Auth needs an email address, so each username is 
 
    The app calls `/api/team` by default, which works when the site and the function are deployed together. If the site is hosted elsewhere, such as GitHub Pages, set `VITE_ADMIN_API` to the function's full URL at build time.
 
-7. **Set up the owner.** Open the app, choose **New workspace setup**, and create the owner account with the username from step 5. Then press **Claim workspace**. This works once; that login becomes the admin.
+7. **Set up the owner.** In Firebase → Authentication → **Settings → User actions**, turn off **Enable create (sign-up)** so no browser can create accounts. Then in **Authentication → Users → Add user**, add `<username>@cue.invalid` (the owner login from step 5) with your own password. Open the app, sign in with that username and press **Claim workspace**. This works once; that login becomes the admin.
 8. **Create the team's logins** from the **Team** screen: a username, a name, a role (admin, member or viewer) and a starting password. Hand the details over yourself. Each person picks their own password at first sign-in. Forgotten passwords are reset from the same screen, and removing someone signs them out and deletes their login.
 
 Access is enforced by [`firestore.rules`](firestore.rules): only team members can read or write, viewers can only read, comments and activity are bound to their author, and only the server function manages accounts. The web config is not a secret; the rules are what protect the data. Test them locally with `npm run test:rules` (needs Java), or run the whole app against local emulators with `npm run emulators` plus a `.env.local` that sets `VITE_FIREBASE_EMULATOR=1`.

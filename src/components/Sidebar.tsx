@@ -35,8 +35,8 @@ import { TemplateModal } from './TemplateModal'
 import { askText } from './askText'
 import { useFavorites } from '../lib/favorites'
 
-// rail vocabulary: active = lighter ink + a 3px signal marker, idle = muted text that lifts on hover
-const RAIL_ON = 'bg-on-ink/10 font-medium text-on-ink shadow-[inset_3px_0_0_var(--signal)] [&>svg]:text-signal'
+// rail vocabulary: active = tinted fill + a signal-yellow icon / square marker, idle = muted text that lifts on hover
+const RAIL_ON = 'bg-on-ink/12 font-medium text-on-ink [&>svg]:text-signal'
 const RAIL_OFF = 'text-on-ink/80 hover:bg-on-ink/[0.07] hover:text-on-ink [&>svg]:text-on-ink-muted'
 const RAIL_QUIET = 'rounded-md text-[13px] text-on-ink-muted transition-colors hover:bg-on-ink/[0.07] hover:text-on-ink'
 
