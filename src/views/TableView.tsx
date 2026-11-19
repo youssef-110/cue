@@ -74,6 +74,7 @@ const WIDTH: Record<Column['type'], number> = {
   tags: 190, checkbox: 84, link: 170, rating: 128, progress: 160,
   formula: 140, time: 140, dependency: 190, connect: 200, mirror: 170, files: 160, email: 190, phone: 150, vote: 120,
   created: 150, updated: 150, itemId: 100, location: 190,
+  hour: 110, week: 170, country: 170, worldclock: 170, color: 130, button: 140,
 }
 const NAME_W = 380
 const colW = (c: Column) => c.width ?? WIDTH[c.type]

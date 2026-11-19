@@ -22,6 +22,9 @@ import {
   X,
   Zap,
   Pencil,
+  LayoutGrid,
+  ClipboardList,
+  Paperclip,
 } from 'lucide-react'
 import { format, formatDistanceToNow } from 'date-fns'
 import { addItem, addView, archiveBoard, deleteBoard, duplicateBoard, isLive, labelOf, liveGroups, navigate, openItem, updateBoard, useCanEdit, useStore, visibleItem } from '../lib/store'
@@ -42,6 +45,9 @@ const CalendarView = lazy(() => import('../views/CalendarView').then((m) => ({ d
 const TimelineView = lazy(() => import('../views/TimelineView').then((m) => ({ default: m.TimelineView })))
 const ChartView = lazy(() => import('../views/ChartView').then((m) => ({ default: m.ChartView })))
 const WorkloadView = lazy(() => import('../views/WorkloadView').then((m) => ({ default: m.WorkloadView })))
+const CardsView = lazy(() => import('../views/MoreViews').then((m) => ({ default: m.CardsView })))
+const FormView = lazy(() => import('../views/MoreViews').then((m) => ({ default: m.FormView })))
+const FilesView = lazy(() => import('../views/MoreViews').then((m) => ({ default: m.FilesView })))
 
 const VIEW_META: Record<View['type'], { icon: typeof Table2; label: string }> = {
   table: { icon: Table2, label: 'Table' },
@@ -50,6 +56,9 @@ const VIEW_META: Record<View['type'], { icon: typeof Table2; label: string }> = 
   calendar: { icon: CalendarDays, label: 'Calendar' },
   chart: { icon: ChartPie, label: 'Dashboard' },
   workload: { icon: ChartColumnBig, label: 'Workload' },
+  cards: { icon: LayoutGrid, label: 'Cards' },
+  form: { icon: ClipboardList, label: 'Form' },
+  files: { icon: Paperclip, label: 'Files' },
 }
 const IN_PROGRESS = /progress|working|doing|review|drafting|negotiat/i
 const EMOJI = ['📋', '✅', '💼', '🚀', '📣', '🎯', '🧠', '🛠️', '📈', '💡', '🎨', '🔬', '🤝', '🗂️', '⚡', '🌊']
@@ -284,6 +293,9 @@ export function BoardPage({ boardId, viewId }: { boardId: string; viewId?: strin
               {view.type === 'timeline' && <TimelineView {...props} />}
               {view.type === 'chart' && <ChartView {...props} />}
               {view.type === 'workload' && <WorkloadView {...props} />}
+              {view.type === 'cards' && <CardsView {...props} />}
+              {view.type === 'form' && <FormView {...props} />}
+              {view.type === 'files' && <FilesView {...props} />}
             </Suspense>
           </div>
         </>

@@ -1,11 +1,12 @@
 import { useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { formatDistanceToNow } from 'date-fns'
-import { Copy, Heart, MessageCircle, MoreHorizontal, Send, Trash2, X, Plus, Archive, Bell, BellOff, RotateCcw } from 'lucide-react'
+import { Copy, Heart, MessageCircle, MoreHorizontal, Reply, Send, Trash2, X, Plus, Archive, Bell, BellOff, RotateCcw } from 'lucide-react'
 import { addItem, addUpdate, archiveItems, deleteItems, duplicateItem, isLive, openItem, remove, renameItem, restoreItems, subscribersOf, toggleLike, toggleSubscribe, useCanEdit, useStore } from '../lib/store'
 import { Avatar, Button, EditableText, MenuItem, Popover, cx } from './ui'
 import { Cell } from './cells'
 import { COLUMN_TYPES } from './columnTypes'
+import type { Update } from '../lib/types'
 
 type Tab = 'updates' | 'subitems' | 'activity'
 
@@ -59,7 +60,17 @@ function PanelBody({ itemId }: { itemId: string }) {
   const menuRef = useRef<HTMLButtonElement>(null)
   const [menu, setMenu] = useState(false)
   const editable = useCanEdit()
-  const updates = useMemo(() => Object.values(updatesMap).filter((u) => u.itemId === itemId).sort((a, b) => b.createdAt - a.createdAt), [updatesMap, itemId])
+  const allUpdates = useMemo(() => Object.values(updatesMap).filter((u) => u.itemId === itemId), [updatesMap, itemId])
+  const updates = useMemo(() => allUpdates.filter((u) => !u.parentId || !updatesMap[u.parentId]).sort((a, b) => b.createdAt - a.createdAt), [allUpdates, updatesMap])
+  const repliesOf = (id: string) => allUpdates.filter((u) => u.parentId === id).sort((a, b) => a.createdAt - b.createdAt)
+  const [replyTo, setReplyTo] = useState<string | null>(null)
+  const [replyDraft, setReplyDraft] = useState('')
+  const sendReply = (parentId: string) => {
+    if (!item || !replyDraft.trim()) return
+    addUpdate(item.id, replyDraft.trim(), parentId)
+    setReplyDraft('')
+    setReplyTo(null)
+  }
   const activity = useMemo(() => Object.values(activityMap).filter((a) => a.itemId === itemId).sort((a, b) => b.at - a.at), [activityMap, itemId])
   const subs = useMemo(() => Object.values(itemsMap).filter((i) => i.parentId === itemId && isLive(i)).sort((a, b) => a.order - b.order), [itemsMap, itemId])
   if (!item || !board) return null
@@ -68,7 +79,7 @@ function PanelBody({ itemId }: { itemId: string }) {
   const gone = item.deletedAt ? 'in the trash' : item.archived ? 'archived' : ''
   const parent = item.parentId ? itemsMap[item.parentId] : undefined
   const mention = draft.match(/@(\w*)$/)?.[1]
-  const mentionHits = mention !== undefined ? Object.values(users).filter((u) => u.name.toLowerCase().startsWith(mention.toLowerCase())).slice(0, 5) : []
+  const mentionHits = mention !== undefined ? Object.values(users).filter((u) => !u.removedAt && u.name.toLowerCase().startsWith(mention.toLowerCase())).slice(0, 5) : []
 
   const send = () => {
     if (!draft.trim()) return
@@ -77,7 +88,7 @@ function PanelBody({ itemId }: { itemId: string }) {
   }
 
   const tabs = [
-    ['updates', 'Updates', updates.length],
+    ['updates', 'Updates', allUpdates.length],
     ...(item.parentId ? [] : [['subitems', 'Subitems', subs.length]]),
     ['activity', 'Activity', activity.length],
   ] as [Tab, string, number][]
@@ -242,26 +253,68 @@ function PanelBody({ itemId }: { itemId: string }) {
                         )}
                       </header>
                       <p className="whitespace-pre-wrap pl-[36px] text-[14px] leading-relaxed">
-                        {u.body.split(/(@\w+)/g).map((part, i) =>
-                          part.startsWith('@') ? (
-                            <span key={i} className="rounded-sm bg-accent-soft px-1 font-medium text-accent">
-                              {part}
-                            </span>
-                          ) : (
-                            part
-                          ),
-                        )}
+                        <Mentions body={u.body} />
                       </p>
-                      <div className="pl-[36px]">
+                      <div className="flex pl-[36px]">
+                        <LikeButton u={u} meId={meId} />
                         <button
-                          onClick={() => toggleLike(u.id)}
-                          aria-pressed={u.likes.includes(meId)}
-                          className={cx('-ml-2 mt-2 flex items-center gap-1.5 rounded-sm px-2 py-1 text-[12.5px] transition-colors hover:bg-hover', u.likes.includes(meId) ? 'text-fg' : 'text-muted')}
+                          onClick={() => (setReplyTo(replyTo === u.id ? null : u.id), setReplyDraft(''))}
+                          aria-expanded={replyTo === u.id}
+                          className="mt-2 flex items-center gap-1.5 rounded-sm px-2 py-1 text-[12.5px] text-muted transition-colors hover:bg-hover hover:text-fg"
                         >
-                          <Heart className={cx('size-3.5', u.likes.includes(meId) && 'fill-current')} />
-                          {u.likes.length > 0 ? <span className="font-mono">{u.likes.length}</span> : 'Like'}
+                          <Reply className="size-3.5" /> Reply
                         </button>
                       </div>
+                      {(repliesOf(u.id).length > 0 || replyTo === u.id) && (
+                        <div className="ml-[36px] mt-2 space-y-3 border-l-2 border-line pl-4">
+                          {repliesOf(u.id).map((rp) => (
+                            <div key={rp.id}>
+                              <div className="flex items-center gap-2">
+                                <Avatar user={users[rp.authorId]} size={20} />
+                                <span className="text-[13px] font-semibold">{users[rp.authorId]?.name ?? 'Someone'}</span>
+                                <span className="font-mono text-[11px] text-faint">{formatDistanceToNow(rp.createdAt, { addSuffix: true })}</span>
+                                {rp.authorId === meId && (
+                                  <button onClick={() => remove('update', rp.id)} aria-label="Delete reply" title="Delete reply" className="ml-auto grid size-6 place-items-center rounded-sm text-faint hover:bg-alert-soft hover:text-alert">
+                                    <Trash2 className="size-3" />
+                                  </button>
+                                )}
+                              </div>
+                              <p className="mt-1 whitespace-pre-wrap pl-7 text-[13.5px] leading-relaxed">
+                                <Mentions body={rp.body} />
+                              </p>
+                              <div className="pl-7">
+                                <LikeButton u={rp} meId={meId} />
+                              </div>
+                            </div>
+                          ))}
+                          {replyTo === u.id && (
+                            <form
+                              onSubmit={(e) => {
+                                e.preventDefault()
+                                sendReply(u.id)
+                              }}
+                              className="flex items-end gap-2"
+                            >
+                              <textarea
+                                autoFocus
+                                rows={2}
+                                value={replyDraft}
+                                onChange={(e) => setReplyDraft(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) sendReply(u.id)
+                                  if (e.key === 'Escape') (e.stopPropagation(), setReplyTo(null))
+                                }}
+                                placeholder="Write a reply…"
+                                aria-label="Write a reply"
+                                className="min-w-0 flex-1 resize-none rounded-md border border-line-strong bg-panel px-2.5 py-1.5 text-[13.5px] outline-none focus:border-accent"
+                              />
+                              <Button variant="primary" disabled={!replyDraft.trim()}>
+                                Reply
+                              </Button>
+                            </form>
+                          )}
+                        </div>
+                      )}
                     </motion.article>
                   ))}
                 </AnimatePresence>
@@ -322,5 +375,35 @@ function PanelBody({ itemId }: { itemId: string }) {
         </div>
       </div>
     </>
+  )
+}
+
+function Mentions({ body }: { body: string }) {
+  return (
+    <>
+      {body.split(/(@\w+)/g).map((part, i) =>
+        part.startsWith('@') ? (
+          <span key={i} className="rounded-sm bg-accent-soft px-1 font-medium text-accent">
+            {part}
+          </span>
+        ) : (
+          part
+        ),
+      )}
+    </>
+  )
+}
+
+function LikeButton({ u, meId }: { u: Update; meId: string }) {
+  const mine = u.likes.includes(meId)
+  return (
+    <button
+      onClick={() => toggleLike(u.id)}
+      aria-pressed={mine}
+      className={cx('-ml-2 mt-2 flex items-center gap-1.5 rounded-sm px-2 py-1 text-[12.5px] transition-colors hover:bg-hover', mine ? 'text-fg' : 'text-muted')}
+    >
+      <Heart className={cx('size-3.5', mine && 'fill-current')} />
+      {u.likes.length > 0 ? <span className="font-mono">{u.likes.length}</span> : 'Like'}
+    </button>
   )
 }

@@ -7,6 +7,7 @@ import type { Board, Column, Item, Label } from '../lib/types'
 import { Avatar, AvatarStack, Button, LabelPill, Popover, cx } from './ui'
 import { fmtDuration, timeTotal } from '../lib/formula'
 import { ConnectCell, ContactCell, CreatedCell, DependencyCell, FilesCell, FormulaCell, ItemIdCell, MirrorCell, TimeCell, UpdatedCell, VoteCell } from './cellsExtra'
+import { ButtonCell, ColorCell, CountryCell, HourCell, WeekCell, WorldClockCell } from './cellsMore'
 
 export type Range = { start: string; end: string }
 export const fmtDate = (d?: string) => (d ? format(parseISO(d), 'MMM d') : '')
@@ -144,7 +145,7 @@ export function StatusCell({ board, col, item }: { board: Board; col: Column; it
 export function PeoplePicker({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
   const users = useStore((s) => s.user)
   const [q, setQ] = useState('')
-  const list = Object.values(users).filter((u) => u.name.toLowerCase().includes(q.toLowerCase()))
+  const list = Object.values(users).filter((u) => !u.removedAt && u.name.toLowerCase().includes(q.toLowerCase()))
   return (
     <div>
       <div className="mb-1 flex items-center gap-2 rounded-md border border-line-strong px-2 focus-within:border-accent">
@@ -549,6 +550,18 @@ export function Cell({ board, col, item, groupColor }: { board: Board; col: Colu
       return <UpdatedCell item={item} />
     case 'itemId':
       return <ItemIdCell item={item} />
+    case 'hour':
+      return <HourCell col={col} item={item} />
+    case 'week':
+      return <WeekCell col={col} item={item} />
+    case 'country':
+      return <CountryCell col={col} item={item} />
+    case 'worldclock':
+      return <WorldClockCell col={col} item={item} />
+    case 'color':
+      return <ColorCell col={col} item={item} />
+    case 'button':
+      return <ButtonCell col={col} item={item} />
     default:
       return <TextCell col={col} item={item} />
   }

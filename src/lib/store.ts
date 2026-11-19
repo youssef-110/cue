@@ -233,6 +233,7 @@ const DEFAULT_TITLES: Record<Column['type'], string> = {
   number: 'Numbers', tags: 'Tags', checkbox: 'Check', link: 'Link', rating: 'Rating', progress: 'Progress',
   formula: 'Formula', time: 'Time tracking', dependency: 'Dependent on', connect: 'Connected items', mirror: 'Mirror', files: 'Files',
   email: 'Email', phone: 'Phone', vote: 'Vote', created: 'Created', updated: 'Last updated', itemId: 'Item ID', location: 'Location',
+  hour: 'Hour', week: 'Week', country: 'Country', worldclock: 'World clock', color: 'Color', button: 'Button',
 }
 export function addColumn(boardId: string, type: Column['type']) {
   const b = get().board[boardId]
@@ -345,7 +346,7 @@ export function addView(boardId: string, type: View['type']) {
   const date = b.columns.find((c) => c.type === 'date')
   const timeline = b.columns.find((c) => c.type === 'timeline')
   const columnId = type === 'calendar' ? date?.id : type === 'timeline' ? (timeline ?? date)?.id : status?.id
-  const names = { table: 'Table', kanban: 'Kanban', timeline: 'Timeline', calendar: 'Calendar', chart: 'Dashboard', workload: 'Workload' }
+  const names: Record<View['type'], string> = { table: 'Table', kanban: 'Kanban', timeline: 'Timeline', calendar: 'Calendar', chart: 'Dashboard', workload: 'Workload', cards: 'Cards', form: 'Form', files: 'Files' }
   const v: View = { id: uid('v_'), type, name: names[type], columnId }
   if (type === 'workload') {
     v.columnId = b.columns.find((c) => c.type === 'people')?.id
@@ -368,9 +369,26 @@ export function addItem(boardId: string, groupId: string, name: string, opts: { 
   runAutomations(item, { kind: 'item_created' })
   return item
 }
+// ---------- undo (Ctrl Z): cell edits and renames made in this tab ----------
+type Undo = { itemId: string; colId?: string; prev: CellValue; label: string }
+const undoStack: Undo[] = []
+let undoing = false
+const remember = (u: Undo) => !undoing && (undoStack.push(u), undoStack.length > 50 && undoStack.shift())
+export function undo() {
+  const u = undoStack.pop()
+  if (!u || !get().item[u.itemId]) return toast('Nothing to undo', { id: 'undo' })
+  undoing = true
+  if (u.colId) setValue(u.itemId, u.colId, u.prev)
+  else renameItem(u.itemId, u.prev as string)
+  undoing = false
+  toast(`Undid ${u.label}`, { id: 'undo' })
+}
+
 export function renameItem(id: string, name: string) {
   const i = get().item[id]
-  if (i && i.name !== name) put('item', { ...i, name })
+  if (!i || i.name === name) return
+  remember({ itemId: id, prev: i.name, label: `rename of “${name}”` })
+  put('item', { ...i, name })
 }
 export function setValue(itemId: string, colId: string, value: CellValue) {
   const item = get().item[itemId]
@@ -378,6 +396,7 @@ export function setValue(itemId: string, colId: string, value: CellValue) {
   const b = get().board[item.boardId]
   const col = b?.columns.find((c) => c.id === colId)
   const prev = item.values[colId]
+  if (canEdit()) remember({ itemId, colId, prev, label: `${col?.title ?? 'edit'} on “${item.name}”` })
   const next: Item = { ...item, values: { ...item.values, [colId]: value }, updatedAt: Date.now(), updatedBy: get().meId }
   put('item', next)
   if (!col) return
@@ -437,16 +456,18 @@ export function duplicateItem(id: string) {
 }
 
 // ---------- updates (comments) ----------
-export function addUpdate(itemId: string, body: string) {
+export function addUpdate(itemId: string, body: string, parentId?: string) {
   const item = get().item[itemId]
   if (!item || !body.trim()) return
-  put('update', { id: uid('up_'), itemId, boardId: item.boardId, authorId: get().meId, body, createdAt: Date.now(), likes: [] })
-  log(item.boardId, `commented on “${item.name}”`, itemId)
+  put('update', { id: uid('up_'), itemId, boardId: item.boardId, authorId: get().meId, body, createdAt: Date.now(), likes: [], ...(parentId && { parentId }) })
+  log(item.boardId, `${parentId ? 'replied' : 'commented'} on “${item.name}”`, itemId)
   // notify subscribers, everyone assigned and mentioned teammates (@First); notify() skips the author
   const b = get().board[item.boardId]
   const to = new Set([...subscribersOf(b, item), ...assigneesOf(b, item)])
   Object.values(get().user).forEach((u) => body.includes('@' + u.name.split(' ')[0]) && to.add(u.id))
-  to.forEach((u) => notify(u, `wrote an update on “${item.name}”`, b.id, itemId))
+  const parent = parentId && get().update[parentId]
+  if (parent) to.add(parent.authorId)
+  to.forEach((u) => notify(u, `${parent ? 'replied to an update' : 'wrote an update'} on “${item.name}”`, b.id, itemId))
 }
 
 // ---------- subscribers ----------

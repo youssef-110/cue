@@ -28,6 +28,12 @@ export type ColumnType =
   | 'updated'
   | 'itemId'
   | 'location'
+  | 'hour'
+  | 'week'
+  | 'country'
+  | 'worldclock'
+  | 'color'
+  | 'button'
 
 export interface Label {
   id: string
@@ -59,7 +65,7 @@ export interface Group {
   deletedAt?: number // soft delete: in Trash, restorable for 30 days
 }
 
-export type ViewType = 'table' | 'kanban' | 'timeline' | 'calendar' | 'chart' | 'workload'
+export type ViewType = 'table' | 'kanban' | 'timeline' | 'calendar' | 'chart' | 'workload' | 'cards' | 'form' | 'files'
 
 export type FilterOp = 'is' | 'is_not' | 'contains' | 'empty' | 'not_empty' | 'before' | 'after' | 'gt' | 'lt'
 export interface FilterRule {
@@ -166,6 +172,7 @@ export interface Update {
   body: string
   createdAt: number
   likes: string[]
+  parentId?: string // a reply to another update
 }
 
 export interface Activity {
@@ -195,6 +202,7 @@ export interface User {
   username?: string
   color: string
   title?: string
+  removedAt?: unknown // set by the team server when an admin removes the login
 }
 
 export interface Workspace {

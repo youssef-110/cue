@@ -1,4 +1,4 @@
-import {
+import { Clock, CalendarRange, Globe, Palette, MousePointerClick,
   AlignLeft, Calendar, CalendarPlus, ChartGantt, CircleDot, ClockArrowUp, Combine, Flag, Gauge, GitBranch, Hash, IdCard, Link, Link2, Mail, MapPin,
   Paperclip, Phone, SquareCheck, SquareFunction, Star, Tags, ThumbsUp, Timer, Type, Users, type LucideIcon,
 } from 'lucide-react'
@@ -31,4 +31,10 @@ export const COLUMN_TYPES: { type: Column['type']; label: string; icon: LucideIc
   { type: 'created', label: 'Creation log', icon: CalendarPlus, color: '#55554f' },
   { type: 'updated', label: 'Last updated', icon: ClockArrowUp, color: '#55554f' },
   { type: 'itemId', label: 'Item ID', icon: IdCard, color: '#55554f' },
+  { type: 'hour', label: 'Hour', icon: Clock, color: '#55554f' },
+  { type: 'week', label: 'Week', icon: CalendarRange, color: '#55554f' },
+  { type: 'country', label: 'Country', icon: Flag, color: '#55554f' },
+  { type: 'worldclock', label: 'World clock', icon: Globe, color: '#55554f' },
+  { type: 'color', label: 'Color picker', icon: Palette, color: '#55554f' },
+  { type: 'button', label: 'Button', icon: MousePointerClick, color: '#55554f' },
 ]

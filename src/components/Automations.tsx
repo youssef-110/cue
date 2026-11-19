@@ -298,7 +298,7 @@ function ActionEditor({ board, value, onChange, recurring }: { board: Board; val
       {value.kind === 'notify' && (
         <select aria-label="Who" className={sel} value={value.userId} onChange={(e) => onChange({ ...value, userId: e.target.value })}>
           <option value="">the assignees</option>
-          {Object.values(users).map((u) => (
+          {Object.values(users).filter((u) => !u.removedAt).map((u) => (
             <option key={u.id} value={u.id}>{u.name}</option>
           ))}
         </select>
@@ -312,7 +312,7 @@ function ActionEditor({ board, value, onChange, recurring }: { board: Board; val
       )}
       {value.kind === 'assign' && (
         <select aria-label="Person" className={sel} value={value.userId} onChange={(e) => onChange({ ...value, userId: e.target.value })}>
-          {Object.values(users).map((u) => (
+          {Object.values(users).filter((u) => !u.removedAt).map((u) => (
             <option key={u.id} value={u.id}>{u.name}</option>
           ))}
         </select>

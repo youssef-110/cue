@@ -90,16 +90,20 @@ export function Popover({
   className?: string
 }) {
   const ref = useRef<HTMLDivElement>(null)
-  const [pos, setPos] = useState({ top: 0, left: 0, up: false })
+  const [pos, setPos] = useState({ top: 0, left: 0, up: false, maxH: 0 })
   useLayoutEffect(() => {
     if (!open || !anchor) return
     const place = () => {
       const r = anchor.getBoundingClientRect()
-      const h = ref.current?.offsetHeight ?? 280
-      const up = r.bottom + h + 12 > innerHeight && r.top > h + 12
+      // natural height, then clamp to the roomier side so long menus scroll instead of running off screen
+      const natural = ref.current?.scrollHeight ?? 280
+      const below = innerHeight - r.bottom - 14
+      const above = r.top - 14
+      const up = natural > below && above > below
+      const h = Math.min(natural, up ? above : below)
       let left = align === 'center' ? r.left + r.width / 2 - width / 2 : align === 'end' ? r.right - width : r.left
       left = Math.max(8, Math.min(left, innerWidth - width - 8))
-      setPos({ top: up ? r.top - h - 6 : r.bottom + 6, left, up })
+      setPos({ top: up ? r.top - h - 6 : r.bottom + 6, left, up, maxH: Math.max(120, up ? above : below) })
     }
     place()
     const raf = requestAnimationFrame(place)
@@ -134,7 +138,7 @@ export function Popover({
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, transition: { duration: 0.1 } }}
           transition={{ duration: 0.14, ease: [0.2, 0.7, 0.2, 1] }}
-          style={{ position: 'fixed', top: pos.top, left: pos.left, width, zIndex: 60 }}
+          style={{ position: 'fixed', top: pos.top, left: pos.left, width, zIndex: 60, maxHeight: pos.maxH || undefined, overflowY: 'auto' }}
           className={cx('rounded-lg border border-line-strong bg-panel p-1 shadow-pop', className)}
         >
           {children}

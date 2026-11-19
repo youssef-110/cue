@@ -2,7 +2,7 @@ import { Suspense, lazy, useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { Toaster, toast } from 'sonner'
 import { useShallow } from 'zustand/react/shallow'
-import { checkDateAutomations, init, openItem, setPalette, setTheme, useStore } from './lib/store'
+import { checkDateAutomations, init, openItem, setPalette, setTheme, undo, useStore } from './lib/store'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
 import { auth, cloudAdapter, db, localAdapter } from './lib/sync'
 import { checkAccess, watchMyMembership } from './lib/team'
@@ -77,6 +77,10 @@ export default function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const typing = /INPUT|TEXTAREA|SELECT/.test((e.target as HTMLElement).tagName) || (e.target as HTMLElement).isContentEditable
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'z' && !typing) {
+        e.preventDefault()
+        undo()
+      }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault()
         setPalette(!useStore.getState().paletteOpen)

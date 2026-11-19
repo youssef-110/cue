@@ -29,6 +29,7 @@ const SHORTCUTS: [string, string][] = [
   ['Ctrl K', 'Search and jump anywhere'],
   ['N', 'New item on the current board'],
   ['/', 'Search the current board'],
+  ['Ctrl Z', 'Undo your last cell edit or rename'],
   ['Esc', 'Close the open item'],
   ['D', 'Switch light and dark'],
 ]
@@ -85,7 +86,7 @@ const SECTIONS: Section[] = [
         </ul>
         <P>
           <B>Formula</B> calculates from other columns. <B>Connect boards</B> links items across boards and <B>Mirror</B> shows a value from the linked item. <B>Dependency</B> marks
-          what must finish first, and the timeline draws it as an arrow. <B>Files</B> stores links to documents, so keep the files in your shared drive.
+          what must finish first, and the timeline draws it as an arrow. <B>Files</B> stores links to documents, so keep the files in your shared drive. <B>World clock</B> shows the current time in a city, handy for partners abroad. A <B>Button</B> column runs automations: add one, then create a “When column changes” automation on it.
         </P>
       </>
     ),
@@ -104,6 +105,9 @@ const SECTIONS: Section[] = [
             <><B>Calendar</B>: items on the day they are due.</>,
             <><B>Chart</B>: the board summarised by status, priority or person.</>,
             <><B>Workload</B>: how much each person has on, week by week.</>,
+            <><B>Cards</B>: every item as a card, editable in place.</>,
+            <><B>Form</B>: a clean form that adds a new item to the board. Good for requests and intake.</>,
+            <><B>Files</B>: every file link attached anywhere on the board, in one list.</>,
           ]}
         />
         <P>Filters and group-by are saved per view, so one board can have a “My open items” table and a “Whole team” kanban.</P>
@@ -119,6 +123,7 @@ const SECTIONS: Section[] = [
           Open an item and write in <B>Updates</B> to discuss it. Type <B>@</B> and a name to mention someone: they get a notification in their <B>Inbox</B>. People
           assigned to an item, or who follow it with the bell, hear about new updates too.
         </P>
+        <P>Click <B>Reply</B> under an update to answer it in a thread. The person who wrote it is notified.</P>
         <P>
           <B>My work</B> lists everything assigned to you on any board, grouped by Overdue, Today, This week, Next week, Later and No date. It is the best place to start the day.
         </P>
