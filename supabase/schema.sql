@@ -35,10 +35,59 @@ drop policy if exists "team read" on public.docs;
 drop policy if exists "team insert" on public.docs;
 drop policy if exists "team update" on public.docs;
 
-create policy "team read"   on public.docs for select to authenticated using (public.is_team_member());
-create policy "team insert" on public.docs for insert to authenticated with check (public.is_team_member());
-create policy "team update" on public.docs for update to authenticated using (public.is_team_member()) with check (public.is_team_member());
+-- Boards, items and workspaces are shared team work: any member may edit them.
+-- Personal rows are owner-bound:
+--   user          your own profile (placeholder teammates with 'u_' ids stay editable)
+--   update        comments are written as yourself; others may only like them
+--   activity      written as yourself, never edited afterwards
+--   notification  sent as yourself; only the recipient (or sender) can mark it read
+create policy "team read" on public.docs for select to authenticated using (public.is_team_member());
+
+create policy "team insert" on public.docs for insert to authenticated with check (
+  public.is_team_member() and case kind
+    when 'user'         then id = auth.uid()::text or id like 'u\_%'
+    when 'update'       then data ->> 'authorId' = auth.uid()::text
+    when 'activity'     then data ->> 'actorId'  = auth.uid()::text
+    when 'notification' then data ->> 'actorId'  = auth.uid()::text
+    else true
+  end
+);
+
+create policy "team update" on public.docs for update to authenticated
+  using (
+    public.is_team_member() and case kind
+      when 'user'         then id = auth.uid()::text or id like 'u\_%'
+      when 'activity'     then false
+      when 'notification' then auth.uid()::text in (data ->> 'userId', data ->> 'actorId')
+      else true
+    end
+  )
+  with check (public.is_team_member());
 -- No delete policy: the app soft-deletes (deleted = true) so nothing is lost by accident.
+
+-- Ownership fields can never be rewritten, and a row can't change its kind.
+create or replace function public.docs_guard() returns trigger
+language plpgsql as $$
+begin
+  if new.id is distinct from old.id or new.kind is distinct from old.kind then
+    raise exception 'docs: id and kind are immutable';
+  end if;
+  if new.data ->> 'authorId'  is distinct from old.data ->> 'authorId'
+  or new.data ->> 'actorId'   is distinct from old.data ->> 'actorId'
+  or new.data ->> 'userId'    is distinct from old.data ->> 'userId'
+  or new.data ->> 'createdBy' is distinct from old.data ->> 'createdBy' then
+    raise exception 'docs: ownership fields are immutable';
+  end if;
+  -- other people may only change the likes on a comment
+  if new.kind = 'update' and old.data ->> 'authorId' <> auth.uid()::text
+     and ((new.data - 'likes') is distinct from (old.data - 'likes') or new.deleted is distinct from old.deleted) then
+    raise exception 'docs: only the author can edit a comment';
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists docs_guard on public.docs;
+create trigger docs_guard before update on public.docs for each row execute function public.docs_guard();
 
 -- Realtime updates for every connected teammate.
 do $$

@@ -27,7 +27,12 @@ export function parseCSV(text: string): string[][] {
   return rows.filter((r) => r.some((c) => c.trim()))
 }
 
-const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s)
+// Prefix cells that spreadsheets would run as formulas (=, +, -, @, tab, CR).
+const neutralize = (s: string) => (/^[=+\-@\t\r]/.test(s) && !/^-?\d+(\.\d+)?$/.test(s) ? "'" + s : s)
+const esc = (raw: string) => {
+  const s = neutralize(raw)
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+}
 
 export function exportBoardCSV(board: Board) {
   const users = useStore.getState().user
