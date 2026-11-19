@@ -101,7 +101,7 @@ function Hero() {
 
           <div className="mt-8 grid gap-x-12 gap-y-7 sm:mt-10 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
             <p className="max-w-[44ch] text-[19px] leading-[1.45] font-medium text-pretty sm:text-[21px]">
-              Cue is the free, open-source work manager the Deep Echo team runs its day on. Boards, seven views and automations, with every deadline read like a train time.
+              Cue is the free, open-source work manager the Deep Echo team runs its day on. Boards, ten views and automations, with every deadline read like a train time.
             </p>
             <div>
               <Actions />
@@ -112,7 +112,7 @@ function Hero() {
           <p className="mt-10 flex flex-wrap gap-x-5 gap-y-1 border-t-2 border-on-signal pt-3 font-mono text-[13px] font-medium">
             <span>MIT LICENCE</span>
             <span>FREE FOR EVERY SEAT</span>
-            <span>7 VIEWS</span>
+            <span>10 VIEWS</span>
             <span className="hidden sm:inline">NO PUBLIC SIGN-UP</span>
             <span className="ml-auto">
               {clock.day} {clock.time}

@@ -27,7 +27,7 @@ export function WhatIs() {
       <SectionHead id="what" title="Built by the team that runs on it" />
       <div className="grid gap-x-12 gap-y-10 pt-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
         <p className="max-w-[34ch] text-[clamp(1.35rem,2.4vw,1.75rem)] leading-[1.32] font-medium text-pretty">
-          Cue is the work manager the Deep Echo team uses every day: tasks, sales leads and investor prep, each on its own board. Items carry typed columns, the same board opens in seven views, and small automations
+          Cue is the work manager the Deep Echo team uses every day: tasks, sales leads and investor prep, each on its own board. Items carry typed columns, the same board opens in ten views, and small automations
           handle the follow-ups. Free for every seat, open source under MIT, and closed to everyone outside the team.
         </p>
         <div>
@@ -61,8 +61,8 @@ const VIEWS: { name: string; text: string; mock: () => ReactNode }[] = [
 export function Views() {
   return (
     <section aria-labelledby="views" className={cx(WRAP, 'pt-28 sm:pt-36')}>
-      <SectionHead id="views" title="Seven views, one board">
-        Every view edits the same items. Change a status on the Kanban and the table, the timeline and the dashboard already know.
+      <SectionHead id="views" title="Ten views, one board">
+        Every view edits the same items. Change a status on the Kanban and the table, the timeline and the dashboard already know. Cards, a Form for intake and a Files list sit alongside these.
       </SectionHead>
       <ol>
         {VIEWS.map((v) => (

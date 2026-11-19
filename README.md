@@ -6,7 +6,7 @@
 
 <p align="center">
   Free, open-source work management, built by the Deep Echo team for itself.<br />
-  Boards, typed columns, seven views and automations. MIT licensed.
+  Boards, typed columns, ten views and automations. MIT licensed.
 </p>
 
 <p align="center">
@@ -23,7 +23,7 @@ The team's hosted workspace is private. There is no public sign-up: the team's a
 
 **Boards**
 - Boards with coloured, collapsible groups, items and subitems
-- 26 column types: status, priority, people, date, timeline, text, long text, numbers, tags, checkbox, link, rating, progress, formula, time tracking, dependency, connect boards, mirror, file links, email, phone, location, vote, creation log, last updated and item ID
+- 32 column types: status, priority, people, date, timeline, text, long text, numbers, tags, checkbox, link, rating, progress, formula, time tracking, dependency, connect boards, mirror, file links, email, phone, location, vote, creation log, last updated, item ID, hour, week, country, world clock, colour picker and button
 - Board templates to start from
 - CSV and Excel (.xlsx) import with column-type detection, and CSV export
 - Archive and trash, with restore
@@ -35,10 +35,13 @@ The team's hosted workspace is private. There is no public sign-up: the team's a
 - **Calendar**: dated items on a month grid
 - **Dashboard**: counts and charts from the board's data, plus dashboards that combine several boards
 - **Workload**: each person's load per week against a capacity
+- **Cards**: every item as an editable card
+- **Form**: an intake form that adds items to the board
+- **Files**: every attached file link on the board in one list
 - **Docs**: markdown pages beside the boards, with checklists and links
 
 **Working together**
-- Updates on every item, with @mentions
+- Updates on every item, with @mentions, likes and threaded replies
 - Inbox for mentions and changes
 - **My work**: everything assigned to you across all boards
 - Realtime sync for the whole team through Firebase
@@ -49,12 +52,13 @@ The team's hosted workspace is private. There is no public sign-up: the team's a
 
 **Accounts** (team mode)
 - Username and password logins created by an admin; no public sign-up
-- Admin, member and viewer roles
+- Admin, member and viewer roles; role changes apply live
+- Welcome tour for everyone, an admin tour, and a built-in Help page
 - The admin resets forgotten passwords; people choose their own password at their next sign-in
 
 **Speed**
 - Command palette with <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>K</kbd>
-- Keyboard shortcuts for the common actions
+- Keyboard shortcuts for the common actions, and Ctrl+Z to undo edits
 - Light and dark themes
 
 ## Quick start
