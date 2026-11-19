@@ -1,0 +1,135 @@
+/* Landing-only styles. Tokens come from ../index.css. */
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 88px;
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+.lp-shell {
+  --indigo: #5b5bf0;
+  --blue: #4a7dff;
+  --teal: #14c4c4;
+  overflow-x: clip;
+}
+
+/* Fine grid that fades out toward the edges. */
+.lp-grid {
+  background-image:
+    linear-gradient(to right, color-mix(in oklab, var(--fg) 7%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklab, var(--fg) 7%, transparent) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 30%, transparent 75%);
+}
+
+/* Film grain. Inline SVG turbulence, no external asset. */
+.lp-noise {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E");
+  opacity: 0.09;
+  mix-blend-mode: overlay;
+}
+.dark .lp-noise {
+  opacity: 0.14;
+}
+
+/* Slow drifting colour fields behind the hero. */
+.lp-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(80px);
+  opacity: 0.38;
+  will-change: transform;
+}
+.dark .lp-blob {
+  opacity: 0.3;
+}
+.lp-blob-a {
+  background: var(--indigo);
+  animation: lp-drift-a 22s ease-in-out infinite alternate;
+}
+.lp-blob-b {
+  background: var(--blue);
+  animation: lp-drift-b 26s ease-in-out infinite alternate;
+}
+.lp-blob-c {
+  background: var(--teal);
+  animation: lp-drift-c 19s ease-in-out infinite alternate;
+}
+@keyframes lp-drift-a {
+  to {
+    transform: translate(12%, 18%) scale(1.15);
+  }
+}
+@keyframes lp-drift-b {
+  to {
+    transform: translate(-14%, 10%) scale(0.9);
+  }
+}
+@keyframes lp-drift-c {
+  to {
+    transform: translate(-8%, -16%) scale(1.2);
+  }
+}
+
+/* The tideline: a repeating wave that rolls sideways. */
+.lp-wave {
+  animation: lp-roll var(--dur, 14s) linear infinite;
+}
+@keyframes lp-roll {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* A dot that travels along an automation connector. */
+.lp-pulse {
+  animation: lp-travel 2.8s cubic-bezier(0.6, 0, 0.3, 1) infinite;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes lp-travel {
+  0% {
+    left: 0%;
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    left: 100%;
+    opacity: 0;
+  }
+}
+
+.lp-caret {
+  animation: lp-blink 1s steps(1) infinite;
+}
+@keyframes lp-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+.lp-glass {
+  background: color-mix(in oklab, var(--bg) 72%, transparent);
+  backdrop-filter: saturate(1.6) blur(14px);
+  -webkit-backdrop-filter: saturate(1.6) blur(14px);
+}
+
+.lp-key {
+  box-shadow:
+    inset 0 -2px 0 color-mix(in oklab, var(--fg) 14%, transparent),
+    0 1px 0 color-mix(in oklab, var(--fg) 6%, transparent);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+.group:hover .lp-key:nth-child(odd),
+.lp-key:active {
+  transform: translateY(1px);
+  box-shadow: inset 0 -1px 0 color-mix(in oklab, var(--fg) 14%, transparent);
+}
