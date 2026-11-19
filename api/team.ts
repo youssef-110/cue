@@ -100,6 +100,18 @@ async function send(m: Mail) {
   await mailer.sendMail({ from: `"Cue" <${user}>`, ...m }).catch((e: Error) => fail(502, 'The mail server refused the message: ' + e.message.slice(0, 120)))
 }
 const hashCode = (uid: string, code: string) => createHash('sha256').update(`${uid}:${code}`).digest('hex')
+const DAY = () => new Date().toISOString().slice(0, 10)
+/** Count one send against a daily allowance kept in /emailQuota (server-only); false once it is used up. */
+async function allow(db: Firestore, key: string, perDay: number) {
+  const ref = db.doc(`emailQuota/${key}`)
+  return db.runTransaction(async (t) => {
+    const d = await t.get(ref)
+    const count = d.get('day') === DAY() ? Number(d.get('count')) : 0
+    if (count >= perDay) return false
+    t.set(ref, { day: DAY(), count: count + 1 })
+    return true
+  })
+}
 function render(headline: string, body: string, link: string, code?: string) {
   const html = `<!doctype html><html><body style="margin:0;background:#f4f3ee;font-family:Helvetica,Arial,sans-serif;color:#121212">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px 12px">
@@ -265,6 +277,9 @@ export default async function handler(req: Req, res: Res) {
         const ref = db.doc(`emailCodes/${caller.uid}`)
         const prev = await ref.get()
         if (prev.exists && Date.now() - Number(prev.get('sentAt')) < 45_000) fail(429, 'A code was just sent. Wait a moment before asking for another.')
+        // caps survive new requests: 5 codes a day per person, 3 a day to any one address
+        if (!(await allow(db, `u_${caller.uid}`, 5))) fail(429, 'That is enough codes for today. Try again tomorrow.')
+        if (!(await allow(db, `a_${createHash('sha256').update(email).digest('hex')}`, 3))) fail(429, 'That address has had enough codes for today. Try again tomorrow.')
         const code = String(randomInt(0, 1_000_000)).padStart(6, '0')
         await ref.set({ email, hash: hashCode(caller.uid, code), sentAt: Date.now(), tries: 0 })
         const { html, text } = render('Your Cue confirmation code', 'Type this code in Cue to connect this email address. It works for 15 minutes.', APP_URL, code)
@@ -273,22 +288,26 @@ export default async function handler(req: Req, res: Res) {
       }
       case 'email-confirm': {
         const ref = db.doc(`emailCodes/${caller.uid}`)
-        const pending = await ref.get()
-        if (!pending.exists) fail(400, 'Ask for a new code first')
-        if (Date.now() - Number(pending.get('sentAt')) > 15 * 60_000) (await ref.delete(), fail(400, 'That code has expired. Ask for a new one.'))
-        if (Number(pending.get('tries')) >= 5) (await ref.delete(), fail(429, 'Too many wrong codes. Ask for a new one.'))
         const code = String(body.code ?? '').replace(/\D/g, '')
-        if (hashCode(caller.uid, code) !== pending.get('hash')) {
-          await ref.update({ tries: FieldValue.increment(1) })
-          fail(400, 'That code is not right. Check the email and try again.')
-        }
-        const email = pending.get('email') as string
-        const batch = db.batch()
-        batch.update(db.doc(`members/${caller.uid}`), { notifyEmail: email })
-        batch.set(db.doc(`user/${caller.uid}`), { email, emailNotify: true }, { merge: true })
-        batch.delete(ref)
-        await batch.commit()
-        return res.status(200).json({ email })
+        // one transaction: check the attempt budget, spend one attempt, then compare, so parallel guesses can't skip the limit
+        const outcome = await db.runTransaction(async (t) => {
+          const pending = await t.get(ref)
+          if (!pending.exists) return 'missing'
+          if (Date.now() - Number(pending.get('sentAt')) > 15 * 60_000) return (t.delete(ref), 'expired')
+          const tries = Number(pending.get('tries')) + 1
+          if (tries > 5) return (t.delete(ref), 'locked')
+          if (hashCode(caller.uid, code) !== pending.get('hash')) return (t.update(ref, { tries }), 'wrong')
+          const email = pending.get('email') as string
+          t.update(db.doc(`members/${caller.uid}`), { notifyEmail: email })
+          t.set(db.doc(`user/${caller.uid}`), { email, emailNotify: true }, { merge: true })
+          t.delete(ref)
+          return 'ok:' + email
+        })
+        if (outcome === 'missing') fail(400, 'Ask for a new code first')
+        if (outcome === 'expired') fail(400, 'That code has expired. Ask for a new one.')
+        if (outcome === 'locked') fail(429, 'Too many wrong codes. Ask for a new one.')
+        if (outcome === 'wrong') fail(400, 'That code is not right. Check the email and try again.')
+        return res.status(200).json({ email: outcome.slice(3) })
       }
       case 'email-remove': {
         const batch = db.batch()
