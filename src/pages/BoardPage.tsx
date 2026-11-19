@@ -306,7 +306,7 @@ function StatusLine({ total, moving, delayed, now }: { total: number; moving: nu
       <span>
         <b className="font-semibold">{moving}</b> in progress
       </span>
-      <span className={cx(delayed ? 'rounded-sm bg-alert px-1.5 py-0.5 text-panel' : 'opacity-80')}>
+      <span className={cx(delayed ? 'rounded-sm bg-alert px-1.5 py-0.5 text-white' : 'opacity-80')}>
         <b className="font-semibold">{delayed}</b> delayed
       </span>
       <time dateTime={now.toISOString()} className="opacity-80">

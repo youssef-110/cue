@@ -1,0 +1,157 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-19T00:00:00Z",
+  "title": "Design System: Cue",
+  "extensions": {
+    "colorMeta": {
+      "signal-yellow": { "role": "primary", "displayName": "Signal Yellow", "canonical": "#f6d11f", "tonalRamp": ["#3d3205", "#5e4d08", "#856d0b", "#ad8e0e", "#d4ae12", "#f6d11f", "#f9e06a", "#fdf3c4"] },
+      "ink": { "role": "primary", "displayName": "Station Ink", "canonical": "#121212", "tonalRamp": ["#0b0b0a", "#121212", "#22221f", "#3d3d39", "#55554f", "#74746e", "#a9a8a0", "#e3e2db"] },
+      "platform-blue": { "role": "secondary", "displayName": "Platform Blue", "canonical": "#1d4fb8", "tonalRamp": ["#0a1c42", "#112d6b", "#1d4fb8", "#3466cc", "#6f9bf2", "#9dbbf6", "#c9d9fa", "#e6edfa"] },
+      "exception-red": { "role": "tertiary", "displayName": "Exception Red", "canonical": "#d3242b", "tonalRamp": ["#3a1c1d", "#6b1216", "#a01b21", "#d3242b", "#f0565c", "#ff6b70", "#f6b3b5", "#fbe6e6"] },
+      "station-paper": { "role": "neutral", "displayName": "Station Paper", "canonical": "#f4f3ee", "tonalRamp": ["#121211", "#2f2f2b", "#55554f", "#8a8a84", "#c9c8bf", "#e3e2db", "#f1f0ea", "#f4f3ee"] },
+      "panel": { "role": "neutral", "displayName": "Panel White" },
+      "panel-2": { "role": "neutral", "displayName": "Panel Two" },
+      "hover": { "role": "neutral", "displayName": "Hover Stone" },
+      "rule": { "role": "neutral", "displayName": "Hairline" },
+      "rule-strong": { "role": "neutral", "displayName": "Strong Rule" },
+      "fg": { "role": "neutral", "displayName": "Ink Text" },
+      "muted": { "role": "neutral", "displayName": "Muted" },
+      "faint": { "role": "neutral", "displayName": "Faint" },
+      "on-ink-muted": { "role": "neutral", "displayName": "On-Ink Muted" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Landing hero headline only, condensed caps." },
+      "headline": { "displayName": "Headline", "purpose": "Board name on the yellow band (30px under 640px)." },
+      "title": { "displayName": "Title", "purpose": "View tabs and panel titles, condensed caps." },
+      "body": { "displayName": "Body", "purpose": "Cell text, menus and descriptions; 16px on the landing." },
+      "label": { "displayName": "Label", "purpose": "Column headers, breadcrumbs, label pills, popover section heads." },
+      "mono": { "displayName": "Mono", "purpose": "Every date, time, count and ID; status line; keyboard hints." },
+      "departure-time": { "displayName": "Departure Time", "purpose": "Day digits of a deadline cell, flanked by 11px weekday and month caps." }
+    },
+    "shadows": [
+      { "name": "pop", "value": "0 2px 4px rgb(18 18 18 / 0.06), 0 12px 28px -6px rgb(18 18 18 / 0.22)", "purpose": "Popovers, menus, dialogs." },
+      { "name": "card", "value": "0 1px 2px rgb(18 18 18 / 0.06)", "purpose": "Faintest lift for a resting card." },
+      { "name": "board", "value": "0 2px 4px rgb(18 18 18 / 0.08), 0 24px 48px -16px rgb(18 18 18 / 0.35)", "purpose": "Landing departure board only." }
+    ],
+    "motion": [
+      { "name": "flap", "value": "120ms cubic-bezier(0.2, 0.7, 0.2, 1); translateY(-35%) and opacity 0 to rest", "purpose": "Any value that changes in place: status pills, deadline cells." },
+      { "name": "popover", "value": "140ms cubic-bezier(0.2, 0.7, 0.2, 1) in with 4px drift; 100ms fade out", "purpose": "Floating layers." },
+      { "name": "label-hover", "value": "filter 120ms ease to brightness(1.05)", "purpose": "Filled label hover." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "lg", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Ink action, one per toolbar, placed first. Signal yellow in dark.",
+      "html": "<button class=\"ds-btn-primary\"><svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M12 5v14M5 12h14\"/></svg>New item</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border: 0; border-radius: var(--radius-md, 4px); background: var(--ink, #121212); color: var(--on-ink, #f4f3ee); font: 600 13.5px 'Barlow', sans-serif; transition: background-color 150ms; cursor: pointer; } .ds-btn-primary:hover { background: rgb(18 18 18 / 0.85); } .ds-btn-primary:focus-visible { outline: 2px solid var(--accent, #1d4fb8); outline-offset: 2px; }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Ruled secondary action on white panel.",
+      "html": "<button class=\"ds-btn-outline\">Hide done</button>",
+      "css": ".ds-btn-outline { display: inline-flex; align-items: center; height: 32px; padding: 0 12px; border: 1px solid var(--line-strong, #c9c8bf); border-radius: var(--radius-md, 4px); background: var(--panel, #fff); color: var(--fg, #121212); font: 500 13.5px 'Barlow', sans-serif; transition: background-color 150ms; cursor: pointer; } .ds-btn-outline:hover { background: var(--hover, #ebeae3); } .ds-btn-outline:focus-visible { outline: 2px solid var(--accent, #1d4fb8); outline-offset: 2px; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Bare muted action that fills on hover.",
+      "html": "<button class=\"ds-btn-ghost\">Filter</button>",
+      "css": ".ds-btn-ghost { display: inline-flex; align-items: center; height: 32px; padding: 0 12px; border: 0; border-radius: var(--radius-md, 4px); background: transparent; color: var(--muted, #55554f); font: 500 13.5px 'Barlow', sans-serif; transition: background-color 150ms, color 150ms; cursor: pointer; } .ds-btn-ghost:hover { background: var(--hover, #ebeae3); color: var(--fg, #121212); } .ds-btn-ghost:focus-visible { outline: 2px solid var(--accent, #1d4fb8); outline-offset: 2px; }"
+    },
+    {
+      "name": "Search Field",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "32px ruled field; border turns platform blue on focus.",
+      "html": "<label class=\"ds-input\"><svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><circle cx=\"11\" cy=\"11\" r=\"7\"/><path d=\"m20 20-3.5-3.5\"/></svg><input placeholder=\"Search items\"><kbd>/</kbd></label>",
+      "css": ".ds-input { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border: 1px solid var(--line-strong, #c9c8bf); border-radius: var(--radius-md, 4px); background: var(--panel, #fff); color: var(--faint, #74746e); transition: border-color 150ms; } .ds-input:focus-within { border-color: var(--accent, #1d4fb8); } .ds-input input { border: 0; outline: 0; background: transparent; width: 160px; color: var(--fg, #121212); font: 400 13.5px 'Barlow', sans-serif; } .ds-input kbd { font: 400 11px 'JetBrains Mono', monospace; }"
+    },
+    {
+      "name": "Ink Rail",
+      "kind": "nav",
+      "refersTo": "rail",
+      "description": "Ink nav rail; current page gets a paper wash and a yellow icon; unread is a yellow mono badge.",
+      "html": "<nav class=\"ds-rail\"><a class=\"ds-rail-item is-on\" aria-current=\"page\"><svg viewBox=\"0 0 24 24\" width=\"17\" height=\"17\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M3 10 12 3l9 7v10H3z\"/></svg>Home</a><a class=\"ds-rail-item\"><svg viewBox=\"0 0 24 24\" width=\"17\" height=\"17\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M4 4h16v12H4zM4 16l4 4h8l4-4\"/></svg>Inbox<span class=\"ds-rail-badge\">3</span></a><a class=\"ds-rail-item\">My work</a></nav>",
+      "css": ".ds-rail { display: flex; flex-direction: column; gap: 2px; width: 240px; padding: 12px; background: var(--ink, #121212); color: var(--on-ink, #f4f3ee); } .ds-rail-item { display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border-radius: var(--radius-md, 4px); color: rgb(244 243 238 / 0.8); font: 400 14px 'Barlow', sans-serif; text-decoration: none; cursor: pointer; transition: background-color 150ms, color 150ms; } .ds-rail-item svg { color: var(--on-ink-muted, #a9a8a0); } .ds-rail-item:hover { background: rgb(244 243 238 / 0.07); color: var(--on-ink, #f4f3ee); } .ds-rail-item.is-on { background: rgb(244 243 238 / 0.12); color: var(--on-ink, #f4f3ee); font-weight: 500; } .ds-rail-item.is-on svg { color: var(--signal, #f6d11f); } .ds-rail-badge { margin-left: auto; display: grid; place-items: center; height: 18px; min-width: 20px; padding: 0 4px; border-radius: var(--radius-sm, 3px); background: var(--signal, #f6d11f); color: var(--on-signal, #121212); font: 600 11px 'JetBrains Mono', monospace; }"
+    },
+    {
+      "name": "Board Band",
+      "kind": "custom",
+      "refersTo": "band",
+      "description": "Station sign: yellow band with caps board name, mono status line and view tabs on its bottom edge.",
+      "html": "<header class=\"ds-band\"><div class=\"ds-band-crumb\">Deep Echo / Daily tasks</div><h1 class=\"ds-band-name\">Daily tasks</h1><p class=\"ds-band-status\"><span><b>24</b> items</span><span><b>7</b> in progress</span><span class=\"ds-band-delayed\"><b>2</b> delayed</span><span>THU 19 NOV 10:42</span></p><nav class=\"ds-band-tabs\"><a class=\"ds-tab is-on\">Main table</a><a class=\"ds-tab\">Kanban</a><a class=\"ds-tab\">Timeline</a></nav></header>",
+      "css": ".ds-band { background: var(--signal, #f6d11f); color: var(--on-signal, #121212); padding: 16px 32px 0; border-bottom: 2px solid var(--ink, #121212); } .ds-band-crumb { font: 600 12.5px 'Barlow Condensed', sans-serif; text-transform: uppercase; letter-spacing: 0.12em; } .ds-band-name { margin: 12px 0 0; font: 700 44px/1.02 'Barlow Condensed', sans-serif; text-transform: uppercase; letter-spacing: 0.015em; } .ds-band-status { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 6px 0 0; font: 500 13px 'JetBrains Mono', monospace; text-transform: uppercase; font-variant-numeric: tabular-nums; } .ds-band-status b { font-weight: 600; } .ds-band-delayed { background: var(--alert, #d3242b); color: #fff; padding: 2px 6px; border-radius: var(--radius-sm, 3px); } .ds-band-tabs { display: flex; gap: 2px; margin: 16px 0 -2px; } .ds-tab { display: flex; align-items: center; height: 40px; padding: 0 16px; border-radius: 4px 4px 0 0; font: 600 15px 'Barlow Condensed', sans-serif; text-transform: uppercase; letter-spacing: 0.1em; color: rgb(18 18 18 / 0.8); cursor: pointer; transition: background-color 150ms; } .ds-tab:hover { background: rgb(18 18 18 / 0.1); color: #121212; } .ds-tab.is-on { background: var(--bg, #f4f3ee); color: var(--fg, #121212); }"
+    },
+    {
+      "name": "Departure Time",
+      "kind": "custom",
+      "refersTo": "delay-tag",
+      "description": "Deadline set as a train time; late items turn red and carry a +Nd delay tag.",
+      "html": "<div class=\"ds-dep-list\"><span class=\"ds-dep\"><span class=\"ds-dep-part\">FRI</span><span class=\"ds-dep-day\">21</span><span class=\"ds-dep-part\">NOV</span></span><span class=\"ds-dep is-late\"><span class=\"ds-dep-part\">MON</span><span class=\"ds-dep-day\">17</span><span class=\"ds-dep-part\">NOV</span><span class=\"ds-delay\">+2d</span></span></div>",
+      "css": ".ds-dep-list { display: flex; flex-direction: column; gap: 10px; } .ds-dep { display: inline-flex; align-items: baseline; gap: 6px; font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; animation: ds-flap 120ms cubic-bezier(0.2, 0.7, 0.2, 1); } .ds-dep-part { font-size: 11px; font-weight: 500; letter-spacing: 0.04em; color: var(--faint, #74746e); } .ds-dep-day { font-size: 17px; font-weight: 600; line-height: 1; color: var(--fg, #121212); } .ds-dep.is-late .ds-dep-part, .ds-dep.is-late .ds-dep-day { color: var(--alert, #d3242b); } .ds-delay { align-self: center; padding: 3px 4px; border-radius: var(--radius-sm, 3px); background: var(--alert, #d3242b); color: #fff; font-size: 10.5px; font-weight: 600; line-height: 1; } @keyframes ds-flap { from { transform: translateY(-35%); opacity: 0; } to { transform: none; opacity: 1; } }"
+    },
+    {
+      "name": "Label Pill",
+      "kind": "chip",
+      "refersTo": "label-pill",
+      "description": "Small solid status/priority tag in condensed caps; text colour by luminance.",
+      "html": "<div class=\"ds-pills\"><span class=\"ds-pill\" style=\"background:#8a8a84;color:#121212\">Not started</span><span class=\"ds-pill\" style=\"background:#1d4fb8;color:#fff\">In progress</span><span class=\"ds-pill\" style=\"background:#d3242b;color:#fff\">Blocked</span><span class=\"ds-pill\" style=\"background:#f6d11f;color:#121212\">Completed</span><span class=\"ds-pill ds-pill-empty\">—</span></div>",
+      "css": ".ds-pills { display: flex; flex-wrap: wrap; gap: 8px; } .ds-pill { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: var(--radius-sm, 3px); font: 600 12px/1 'Barlow Condensed', sans-serif; text-transform: uppercase; letter-spacing: 0.08em; transition: filter 120ms ease; } .ds-pill:hover { filter: brightness(1.05); } .ds-pill-empty { border: 1px dashed var(--line-strong, #c9c8bf); color: var(--faint, #74746e); }"
+    },
+    {
+      "name": "Avatar",
+      "kind": "custom",
+      "refersTo": "avatar",
+      "description": "Neutral ink circle with paper initials; no saturated user fills.",
+      "html": "<span class=\"ds-avatar\">RY</span>",
+      "css": ".ds-avatar { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 999px; background: var(--ink, #121212); color: var(--on-ink, #f4f3ee); font: 600 10px 'Barlow', sans-serif; letter-spacing: 0.02em; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Departures Board",
+    "overview": "Cue sets a working day the way a European rail station sets its departures: a signal-yellow station sign names the board, an ink rail runs down the left like the platform wall, and every item reads like a train with a time, a destination and an owner. Deadlines are departure times, lateness is a red delay tag, and a changed value ticks into place like a split-flap tile. The rest of the system stays quiet so those signals carry.\n\nDensity is spreadsheet-tight: 32px controls, 13 to 14px body, a grouped table that fills the viewport. Surfaces are warm off-white paper ruled with hairlines, not cards floating on grey. Typography does the structural work: condensed caps for anything that would hang on a sign, mono for anything you would read off a timetable, Barlow for everything people write.\n\nThe earlier violet and teal gradient look was rejected as generic and does not return. No gradients, no glows, no springy motion.",
+    "keyCharacteristics": [
+      "Signal yellow is a place (the band, the mark, the rail badge), not a decoration.",
+      "Ink owns the rail and the primary action; red only ever means something is wrong; blue is selection, focus and links.",
+      "Condensed caps for sign voice, JetBrains Mono for every date, time, count and ID, Barlow for prose.",
+      "Hairline rules and a 2px heavy rule under every column or section header.",
+      "Flap-board ticks (120ms, vertical) when a value changes; nothing bounces."
+    ],
+    "rules": [
+      { "name": "The Red Means Wrong Rule", "body": "Exception red appears only where something is late, blocked or destructive. If nothing is wrong on a screen, no red is on it.", "section": "colors" },
+      { "name": "The Blue Is Selection Rule", "body": "Platform blue marks where you are and what you selected (focus, selection, links). Outside the label palette, where indigo is the default In progress colour, it never fills a surface or a heading.", "section": "colors" },
+      { "name": "The Sign Is Yellow Rule", "body": "Signal yellow fills whole shapes (band, hero, mark tile, badge, the Done label pill) and is never used as a thin accent line or text colour on paper.", "section": "colors" },
+      { "name": "The Timetable Rule", "body": "Every date, time, count and ID is set in JetBrains Mono with tabular figures. Prose never is.", "section": "typography" },
+      { "name": "The Sign Voice Rule", "body": "Condensed caps (the `.caps` treatment: Barlow Condensed, uppercase, 0.04em minimum tracking) are for things that would hang on a sign: names, headers, tabs, labels. Never for sentences.", "section": "typography" },
+      { "name": "The Ruled Not Raised Rule", "body": "Separate content with a 1px hairline; mark the start of a table or section with a 2px rule in the foreground colour. Reach for a shadow only when the element floats.", "section": "elevation" }
+    ],
+    "dos": [
+      "**Do** put the signal-yellow band on every board and keep the ink rail on the left.",
+      "**Do** set every date, time, count and ID in JetBrains Mono with tabular figures.",
+      "**Do** rule tables with 1px hairlines and put a 2px foreground rule under every column or section header.",
+      "**Do** use exception red only for late, blocked, delayed or destructive states, and show lateness as a `+Nd` delay tag.",
+      "**Do** use platform blue for focus (2px outline, 2px offset), selection and links only.",
+      "**Do** keep controls at 32px with 4px corners, and lead each toolbar with the ink primary button.",
+      "**Do** tick changed values in with the 120ms flap animation and respect reduced motion."
+    ],
+    "donts": [
+      "**Don't** bring back the violet and teal gradient look, or any gradient or glow.",
+      "**Don't** use red for emphasis, branding or a heading.",
+      "**Don't** use blue as a decorative accent or a fill outside label pills.",
+      "**Don't** fill whole table cells with status colour; statuses are small solid pills.",
+      "**Don't** add shadows to resting content; only floating layers get Pop.",
+      "**Don't** set sentences in condensed caps.",
+      "**Don't** use springy or bouncing motion."
+    ]
+  }
+}

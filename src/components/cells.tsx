@@ -203,7 +203,7 @@ export function Timetable({ value, late, today }: { value: string; late?: number
       <span className={small}>{format(d, 'EEE')}</span>
       <span className={cx('font-mono text-[16px] font-semibold leading-none tracking-[-0.01em]', late ? 'text-alert' : 'text-fg')}>{format(d, 'dd')}</span>
       <span className={small}>{format(d, isThisYear(d) ? 'MMM' : "MMM ''yy")}</span>
-      {!!late && <span className="self-center rounded-sm bg-alert px-1 py-[3px] font-mono text-[10.5px] font-semibold leading-none text-panel">+{late}d</span>}
+      {!!late && <span className="self-center rounded-sm bg-alert px-1 py-[3px] font-mono text-[10.5px] font-semibold leading-none text-white">+{late}d</span>}
       {today && <span className="caps self-center rounded-sm border border-fg px-1 py-[2px] text-[10.5px] font-semibold leading-none tracking-[0.12em] text-fg">Today</span>}
     </span>
   )

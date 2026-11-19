@@ -716,7 +716,7 @@ function BulkBar({ board, selected, clear }: { board: Board; selected: Set<strin
 
 function BulkBtn({ icon, label, onClick, danger, btnRef }: { icon: React.ReactNode; label: string; onClick: () => void; danger?: boolean; btnRef?: React.Ref<HTMLButtonElement> }) {
   return (
-    <button ref={btnRef} onClick={onClick} className={cx('flex h-9 items-center gap-1.5 rounded-md px-2.5 text-[13px] transition-colors [&>svg]:size-4', danger ? 'text-on-ink hover:bg-alert hover:text-panel' : 'text-on-ink/85 hover:bg-on-ink/10 hover:text-on-ink')}>
+    <button ref={btnRef} onClick={onClick} className={cx('flex h-9 items-center gap-1.5 rounded-md px-2.5 text-[13px] transition-colors [&>svg]:size-4', danger ? 'text-on-ink hover:bg-alert hover:text-white' : 'text-on-ink/85 hover:bg-on-ink/10 hover:text-on-ink')}>
       {icon}
       {label}
     </button>
