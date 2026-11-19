@@ -1,279 +1,274 @@
-import { motion } from 'motion/react'
-import { cx } from '../components/ui'
-import { C, Face, PEOPLE, type Person } from './shared'
+import type { ReactNode } from 'react'
+import cx from 'clsx'
 
-const S = {
-  todo: ['Not started', C.slate],
-  wip: ['Working on it', C.orange],
-  stuck: ['Stuck', C.red],
-  done: ['Done', C.green],
-} as const
-type St = keyof typeof S
+/* Small, real-HTML previews of each view. Decorative: the row next to each one describes it. */
 
-const ITEMS: { name: string; who: Person; st: St; date: string; tags: string[] }[] = [
-  { name: 'Interview five pilot teams', who: PEOPLE.ines, st: 'done', date: 'Nov 12', tags: ['Research'] },
-  { name: 'Write release notes', who: PEOPLE.sam, st: 'wip', date: 'Nov 21', tags: ['Content'] },
-  { name: 'Migrate board permissions', who: PEOPLE.leo, st: 'stuck', date: 'Nov 24', tags: ['Backend'] },
-  { name: 'Calendar view keyboard nav', who: PEOPLE.maya, st: 'wip', date: 'Nov 26', tags: ['Frontend', 'A11y'] },
-  { name: 'CSV import edge cases', who: PEOPLE.leo, st: 'todo', date: 'Dec 2', tags: ['Backend'] },
-  { name: 'Team offsite agenda', who: PEOPLE.ines, st: 'todo', date: 'Dec 8', tags: ['Ops'] },
-]
+const L = {
+  stuck: { c: '#d3242b', t: 'Stuck' },
+  work: { c: '#1d4fb8', t: 'Working on it' },
+  done: { c: '#f6d11f', t: 'Done', ink: true },
+  idle: { c: '#e3e2db', t: 'Not started', ink: true },
+}
+type Lab = keyof typeof L
+
+function Chip({ l }: { l: Lab }) {
+  const x = L[l]
+  return (
+    <span className="caps inline-block rounded-sm px-1 pt-[2px] pb-px text-[9.5px] leading-none font-semibold tracking-[0.06em]" style={{ background: x.c, color: 'ink' in x ? '#121212' : '#fff' }}>
+      {x.t}
+    </span>
+  )
+}
+
+function Who({ i, light }: { i: string; light?: boolean }) {
+  return <span className={cx('inline-grid size-[18px] shrink-0 place-items-center rounded-full text-[8px] font-semibold', light ? 'bg-panel text-fg ring-1 ring-line-strong' : 'bg-fg text-bg')}>{i}</span>
+}
+
+function Frame({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <div aria-hidden="true" className={cx('h-[168px] overflow-hidden rounded-lg border border-line bg-panel text-[11px] leading-tight text-fg select-none', className)}>
+      {children}
+    </div>
+  )
+}
+
+const hd = 'caps text-[9.5px] font-semibold tracking-[0.12em] text-fg'
 
 export function TableMock() {
+  const rows: [string, string, string, Lab, boolean?][] = [
+    ['17 NOV', '10:00', 'Book partner call', 'stuck', true],
+    ['19 NOV', '17:00', 'Collect invoices', 'work'],
+    ['21 NOV', '17:00', 'Investor FAQ', 'idle'],
+    ['25 NOV', '09:30', 'Data room', 'done'],
+  ]
   return (
-    <div className="overflow-x-auto">
-      <div className="min-w-[560px] overflow-hidden rounded-lg border border-line border-l-[3px]" style={{ borderLeftColor: C.indigo }}>
-        <div className="grid grid-cols-[1fr_52px_120px_86px_1fr] bg-panel-2/60 text-[11.5px] text-faint">
-          {['Item', 'Owner', 'Status', 'Due', 'Tags'].map((h, i) => (
-            <span key={h} className={cx('px-3 py-2', i > 0 && 'border-l border-line')}>
-              {h}
-            </span>
-          ))}
-        </div>
-        {ITEMS.map((it) => (
-          <div key={it.name} className="grid grid-cols-[1fr_52px_120px_86px_1fr] border-t border-line text-[13px]">
-            <span className="truncate px-3 py-2.5">{it.name}</span>
-            <span className="grid place-items-center border-l border-line">
-              <Face p={it.who} />
-            </span>
-            <span className="border-l border-line p-[3px]">
-              <span className="grid h-full place-items-center rounded-[5px] text-[11.5px] font-medium text-white" style={{ background: S[it.st][1] }}>
-                {S[it.st][0]}
-              </span>
-            </span>
-            <span className="flex items-center border-l border-line px-3 text-muted tabular-nums">{it.date}</span>
-            <span className="flex items-center gap-1 border-l border-line px-2">
-              {it.tags.map((t) => (
-                <span key={t} className="rounded-md bg-panel-2 px-1.5 py-0.5 text-[11px] text-muted">
-                  {t}
-                </span>
-              ))}
-            </span>
-          </div>
-        ))}
+    <Frame className="px-3 pt-2.5">
+      <div className={cx(hd, 'grid grid-cols-[92px_1fr_auto] border-b-2 border-fg pb-1.5')}>
+        <span>Deadline</span>
+        <span>Item</span>
+        <span>Status</span>
       </div>
-    </div>
+      {rows.map(([d, t, name, l, late]) => (
+        <div key={name} className="grid h-[31px] grid-cols-[92px_1fr_auto] items-center border-b border-line">
+          <span className={cx('flex items-baseline gap-1.5 font-mono', late && 'text-alert')}>
+            <span className={cx('text-[9px]', !late && 'text-faint')}>{d}</span>
+            <span className="text-[12px] font-medium">{t}</span>
+          </span>
+          <span className="truncate pr-2 text-[11.5px]">
+            {name}
+            {late && <span className="ml-1.5 rounded-sm bg-alert px-1 py-px font-mono text-[9px] text-white">+2d</span>}
+          </span>
+          <Chip l={l} />
+        </div>
+      ))}
+    </Frame>
   )
 }
 
 export function KanbanMock() {
-  const cols: St[] = ['todo', 'wip', 'stuck', 'done']
+  const cols: [Lab, [string, string][]][] = [
+    ['idle', [['Investor FAQ', 'YA'], ['Q1 roadmap', 'SK']]],
+    ['work', [['Collect invoices', 'SK'], ['Pitch deck v2', 'LM']]],
+    ['done', [['Data room', 'RB']]],
+  ]
   return (
-    <div className="overflow-x-auto pb-1">
-      <div className="grid min-w-[640px] grid-cols-4 gap-3">
-        {cols.map((st) => {
-          const cards = ITEMS.filter((i) => i.st === st)
-          return (
-            <div key={st} className="rounded-xl bg-panel-2/70 p-2">
-              <div className="mb-2 flex items-center justify-between rounded-md px-2 py-1.5 text-[12px] font-medium text-white" style={{ background: S[st][1] }}>
-                {S[st][0]}
-                <span className="opacity-80 tabular-nums">{cards.length}</span>
-              </div>
-              <div className="space-y-2">
-                {cards.map((c, i) => (
-                  <div
-                    key={c.name}
-                    className={cx(
-                      'rounded-lg border border-line bg-panel p-2.5 text-[12.5px] shadow-card',
-                      st === 'wip' && i === 1 && 'rotate-[2.5deg] shadow-pop ring-2 ring-accent/40',
-                    )}
-                  >
-                    <div className="leading-snug">{c.name}</div>
-                    <div className="mt-2 flex items-center justify-between">
-                      <span className="rounded bg-panel-2 px-1.5 py-0.5 text-[10.5px] text-muted tabular-nums">{c.date}</span>
-                      <Face p={c.who} size={20} />
-                    </div>
-                  </div>
-                ))}
+    <Frame className="grid grid-cols-3 gap-2 bg-panel-2 p-2.5">
+      {cols.map(([l, cards]) => (
+        <div key={l} className="min-w-0">
+          <div className="mb-1.5 flex items-center justify-between">
+            <Chip l={l} />
+            <span className="font-mono text-[9.5px] text-faint">{cards.length}</span>
+          </div>
+          {cards.map(([t, w]) => (
+            <div key={t} className="mb-1.5 rounded-md border border-line bg-panel p-1.5">
+              <div className="truncate text-[11px]">{t}</div>
+              <div className="mt-1.5 flex items-center justify-between">
+                <span className="font-mono text-[9px] text-faint">CUE-1{t.length}</span>
+                <Who i={w} />
               </div>
             </div>
-          )
-        })}
-      </div>
-    </div>
+          ))}
+        </div>
+      ))}
+    </Frame>
   )
 }
 
 export function TimelineMock() {
-  const weeks = ['Nov 9', 'Nov 16', 'Nov 23', 'Nov 30', 'Dec 7']
-  const bars: { name: string; st: St; s: number; w: number; who: Person }[] = [
-    { name: 'Research', st: 'done', s: 0, w: 22, who: PEOPLE.ines },
-    { name: 'Permissions', st: 'stuck', s: 24, w: 30, who: PEOPLE.leo },
-    { name: 'Release notes', st: 'wip', s: 34, w: 18, who: PEOPLE.sam },
-    { name: 'Calendar a11y', st: 'wip', s: 30, w: 40, who: PEOPLE.maya },
-    { name: 'CSV import', st: 'todo', s: 58, w: 24, who: PEOPLE.leo },
-    { name: 'Offsite', st: 'todo', s: 78, w: 16, who: PEOPLE.ines },
+  const bars = [
+    { name: 'Investor FAQ', from: 0, len: 3, c: '#1d4fb8' },
+    { name: 'Pitch deck v2', from: 3, len: 4, c: '#5b3fa8' },
+    { name: 'Data room', from: 2, len: 3, c: '#0f7c8c' },
+    { name: 'Send deck', from: 7, len: 2, c: '#d9661a' },
   ]
+  const day = 100 / 10
   return (
-    <div className="overflow-x-auto">
-      <div className="min-w-[560px]">
-        <div className="grid grid-cols-[110px_1fr] text-[11.5px] text-faint">
-          <span />
-          <div className="grid grid-cols-5">
-            {weeks.map((w) => (
-              <span key={w} className="border-l border-line px-2 py-1.5">
-                {w}
-              </span>
-            ))}
-          </div>
-        </div>
-        <div className="relative">
-          {bars.map((b, i) => (
-            <div key={b.name} className="grid grid-cols-[110px_1fr] border-t border-line">
-              <span className="truncate py-2.5 pr-2 text-[12.5px]">{b.name}</span>
-              <div className="relative grid grid-cols-5">
-                {[0, 1, 2, 3, 4].map((k) => (
-                  <span key={k} className="border-l border-line" />
-                ))}
-                <motion.span
-                  className="absolute top-1/2 flex h-6 -translate-y-1/2 items-center gap-1.5 rounded-full pr-2 pl-0.5 text-[11px] font-medium text-white"
-                  style={{ left: `${b.s}%`, width: `${b.w}%`, background: S[b.st][1], transformOrigin: 'left' }}
-                  initial={{ scaleX: 0 }}
-                  whileInView={{ scaleX: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: 0.1 + i * 0.07, duration: 0.6, ease: [0.2, 0.8, 0.2, 1] }}
-                >
-                  <Face p={b.who} size={20} />
-                  <span className="truncate">{S[b.st][0]}</span>
-                </motion.span>
-              </div>
-            </div>
-          ))}
-          {/* today marker */}
-          <span className="pointer-events-none absolute inset-y-0 w-px bg-tide" style={{ left: 'calc(110px + (100% - 110px) * 0.31)' }}>
-            <span className="absolute -top-1 -left-[3px] size-[7px] rounded-full bg-tide" />
+    <Frame className="relative">
+      <div className="flex h-[22px] border-b-2 border-fg">
+        {['16', '17', '18', '19', '20', '21', '22', '23', '24', '25'].map((d, i) => (
+          <span key={d} className={cx('flex-1 border-l border-line pt-1.5 text-center font-mono text-[9px]', i === 3 ? 'font-semibold text-accent' : 'text-faint')}>
+            {d}
           </span>
-        </div>
+        ))}
       </div>
-    </div>
+      <div className="absolute top-[22px] bottom-0 w-px bg-accent" style={{ left: `${3.5 * day}%` }} />
+      {bars.map((b, i) => (
+        <div key={b.name} className="absolute h-[22px] rounded-sm px-1.5 pt-[5px] text-[10px] font-medium text-white" style={{ top: 32 + i * 33, left: `calc(${b.from * day}% + 2px)`, width: `calc(${b.len * day}% - 4px)`, background: b.c }}>
+          <span className="block truncate">{b.name}</span>
+        </div>
+      ))}
+      {/* dependency: Investor FAQ finishes before Pitch deck v2 starts */}
+      <svg className="absolute inset-0 h-full w-full overflow-visible" viewBox="0 0 100 168" preserveAspectRatio="none">
+        <path d={`M${3 * day} 43 H${3 * day + 1.2} V76 H${3 * day + 0.6}`} fill="none" stroke="var(--fg)" strokeWidth="1.2" vectorEffect="non-scaling-stroke" />
+      </svg>
+    </Frame>
   )
 }
 
 export function CalendarMock() {
-  const now = new Date()
-  const y = now.getFullYear()
-  const m = now.getMonth()
-  const first = new Date(y, m, 1)
-  const lead = (first.getDay() + 6) % 7 // weeks start on Mon
-  const days = new Date(y, m + 1, 0).getDate()
-  const cells = Array.from({ length: Math.ceil((lead + days) / 7) * 7 }, (_, i) => i - lead + 1)
-  const events: Record<number, { t: string; c: string }[]> = {
-    3: [{ t: 'Sprint review', c: C.indigo }],
-    6: [{ t: 'Invoices', c: C.amber }],
-    10: [{ t: 'Release notes', c: C.orange }],
-    12: [{ t: 'Pilot calls', c: C.teal }, { t: '1:1 Leo', c: C.violet }],
-    17: [{ t: 'Board sync', c: C.sky }],
-    19: [{ t: 'Ship v1.4', c: C.green }],
-    24: [{ t: 'Permissions', c: C.red }],
-    26: [{ t: 'Offsite prep', c: C.pink }],
-  }
-  const month = first.toLocaleDateString('en', { month: 'long', year: 'numeric' })
+  const events: Record<number, [string, Lab]> = { 17: ['Partner call', 'stuck'], 19: ['Invoices', 'work'], 21: ['FAQ', 'idle'], 25: ['Data room', 'done'], 27: ['Deck v2', 'work'] }
   return (
-    <div>
-      <div className="mb-2 font-display text-[15px] font-semibold">{month}</div>
-      <div className="grid grid-cols-7 overflow-hidden rounded-lg border border-line text-[11px]">
-        {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => (
-          <span key={d} className="bg-panel-2/60 px-1.5 py-1 text-faint">
-            {d}
-          </span>
+    <Frame>
+      <div className={cx(hd, 'grid grid-cols-7 border-b-2 border-fg px-1 py-1.5 text-center')}>
+        {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
+          <span key={i}>{d}</span>
         ))}
-        {cells.map((d, i) => {
-          const inMonth = d >= 1 && d <= days
-          const today = inMonth && d === now.getDate()
+      </div>
+      <div className="grid grid-cols-7">
+        {Array.from({ length: 28 }, (_, i) => i + 9).map((n) => {
+          const e = events[n]
           return (
-            <div key={i} className={cx('min-h-[52px] border-t border-line p-1 sm:min-h-[60px]', i % 7 && 'border-l', !inMonth && 'bg-panel-2/40')}>
-              {inMonth && (
-                <span className={cx('inline-grid size-5 place-items-center rounded-full tabular-nums', today ? 'bg-accent font-semibold text-white' : 'text-muted')}>{d}</span>
+            <div key={n} className={cx('h-[34px] overflow-hidden border-r border-b border-line px-1 pt-0.5', n === 19 && 'bg-accent-soft')}>
+              <span className={cx('font-mono text-[9px]', n === 19 ? 'font-semibold text-accent' : 'text-faint')}>{n > 30 ? n - 30 : n}</span>
+              {e && (
+                <div className="mt-px truncate rounded-[2px] px-0.5 text-[8.5px] font-medium" style={{ background: L[e[1]].c, color: 'ink' in L[e[1]] ? '#121212' : '#fff' }}>
+                  {e[0]}
+                </div>
               )}
-              {inMonth &&
-                events[d]?.map((e) => (
-                  <span key={e.t} className="mt-0.5 block truncate rounded px-1 py-px text-[10.5px] font-medium text-white" style={{ background: e.c }}>
-                    {e.t}
-                  </span>
-                ))}
             </div>
           )
         })}
       </div>
-    </div>
+    </Frame>
   )
 }
 
 export function DashboardMock() {
-  const tiles = [
-    { k: 'Done this week', v: '18', c: C.green },
-    { k: 'In progress', v: '7', c: C.orange },
-    { k: 'Overdue', v: '2', c: C.red },
+  const split: [Lab, number][] = [
+    ['done', 9],
+    ['work', 6],
+    ['idle', 4],
+    ['stuck', 2],
   ]
-  const byPerson = [
-    { p: PEOPLE.maya, done: 7, wip: 3 },
-    { p: PEOPLE.leo, done: 4, wip: 2 },
-    { p: PEOPLE.ines, done: 5, wip: 1 },
-    { p: PEOPLE.sam, done: 2, wip: 1 },
+  const people: [string, number][] = [
+    ['YA', 8],
+    ['LM', 6],
+    ['SK', 5],
+    ['RB', 3],
   ]
-  const split = [
-    { c: C.green, v: 46 },
-    { c: C.orange, v: 24 },
-    { c: C.red, v: 8 },
-    { c: C.slate, v: 22 },
-  ]
-  let acc = 0
-  const conic = split.map((s) => `${s.c} ${acc}% ${(acc += s.v)}%`).join(', ')
   return (
-    <div className="grid gap-3 sm:grid-cols-[1fr_1fr]">
-      <div className="grid grid-cols-3 gap-3 sm:col-span-2">
-        {tiles.map((t) => (
-          <div key={t.k} className="rounded-xl border border-line bg-panel p-3">
-            <div className="text-[11.5px] text-muted">{t.k}</div>
-            <div className="mt-1 font-display text-[26px] leading-none font-bold tabular-nums" style={{ color: t.c }}>
-              {t.v}
+    <Frame className="grid grid-cols-[1.1fr_1fr]">
+      <div className="border-r border-line p-2.5">
+        <div className={hd}>Status · 3 boards</div>
+        <div className="mt-2 flex items-baseline gap-1.5">
+          <span className="font-mono text-[22px] leading-none font-medium">21</span>
+          <span className="text-[10px] text-muted">open items</span>
+        </div>
+        <div className="mt-2.5 flex h-2.5 overflow-hidden rounded-sm">
+          {split.map(([l, n]) => (
+            <span key={l} style={{ flex: n, background: L[l].c }} />
+          ))}
+        </div>
+        <div className="mt-2 space-y-[3px]">
+          {split.map(([l, n]) => (
+            <div key={l} className="flex items-center gap-1.5 text-[10px]">
+              <span className="size-2 rounded-[1px]" style={{ background: L[l].c, boxShadow: 'inset 0 0 0 1px rgb(0 0 0 / .08)' }} />
+              <span className="text-muted">{L[l].t}</span>
+              <span className="ml-auto font-mono">{n}</span>
             </div>
-          </div>
+          ))}
+        </div>
+      </div>
+      <div className="flex flex-col p-2.5">
+        <div className={hd}>Items per person</div>
+        <div className="mt-2 flex flex-1 items-end gap-2">
+          {people.map(([p, n]) => (
+            <div key={p} className="flex flex-1 flex-col items-center gap-1">
+              <span className="font-mono text-[9px] text-muted">{n}</span>
+              <span className="w-full rounded-t-[2px] bg-fg" style={{ height: n * 11 }} />
+              <span className="font-mono text-[9px] text-faint">{p}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </Frame>
+  )
+}
+
+export function WorkloadMock() {
+  const weeks = ['W47', 'W48', 'W49', 'W50']
+  const load: [string, number[]][] = [
+    ['YA', [4, 7, 3, 2]],
+    ['LM', [3, 4, 5, 1]],
+    ['SK', [2, 3, 4, 4]],
+    ['RB', [5, 2, 1, 3]],
+  ]
+  const cap = 5
+  return (
+    <Frame className="px-3 pt-2">
+      <div className={cx(hd, 'grid grid-cols-[34px_repeat(4,1fr)] gap-1.5 border-b-2 border-fg pb-1.5')}>
+        <span />
+        {weeks.map((w) => (
+          <span key={w} className="font-mono text-[9px] tracking-normal">
+            {w}
+          </span>
         ))}
       </div>
-      <div className="rounded-xl border border-line bg-panel p-3">
-        <div className="mb-3 text-[12px] font-medium">Items by owner</div>
-        <div className="flex h-[132px] items-end justify-around gap-3">
-          {byPerson.map((b, i) => (
-            <div key={b.p.name} className="flex flex-col items-center gap-1.5">
-              <div className="flex h-[100px] w-7 flex-col justify-end overflow-hidden rounded-md">
-                <motion.span
-                  className="block w-full"
-                  style={{ background: C.orange, height: `${b.wip * 9}%`, transformOrigin: 'bottom' }}
-                  initial={{ scaleY: 0 }}
-                  whileInView={{ scaleY: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: 0.25 + i * 0.08, duration: 0.5 }}
-                />
-                <motion.span
-                  className="block w-full"
-                  style={{ background: C.green, height: `${b.done * 9}%`, transformOrigin: 'bottom' }}
-                  initial={{ scaleY: 0 }}
-                  whileInView={{ scaleY: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: 0.1 + i * 0.08, duration: 0.5 }}
-                />
+      {load.map(([p, ws]) => (
+        <div key={p} className="grid h-[31px] grid-cols-[34px_repeat(4,1fr)] items-center gap-1.5 border-b border-line">
+          <Who i={p} />
+          {ws.map((n, i) => {
+            const over = n > cap
+            return (
+              <div key={i} className="relative h-[14px] rounded-sm bg-panel-2">
+                <span className={cx('absolute inset-y-0 left-0 rounded-sm', over ? 'bg-alert' : 'bg-fg/75')} style={{ width: `${Math.min(n / cap, 1) * 100}%` }} />
+                {over && <span className="absolute -top-px right-0.5 font-mono text-[9px] font-semibold text-white">+{n - cap}</span>}
               </div>
-              <Face p={b.p} size={20} />
-            </div>
-          ))}
+            )
+          })}
         </div>
-      </div>
-      <div className="flex items-center gap-4 rounded-xl border border-line bg-panel p-3">
-        <div className="relative size-[112px] shrink-0 rounded-full" style={{ background: `conic-gradient(${conic})` }}>
-          <div className="absolute inset-[18px] grid place-items-center rounded-full bg-panel text-center">
-            <span className="font-display text-xl leading-none font-bold">46%</span>
-          </div>
-        </div>
-        <ul className="space-y-1.5 text-[12px] text-muted">
-          {(['done', 'wip', 'stuck', 'todo'] as St[]).map((s) => (
-            <li key={s} className="flex items-center gap-2">
-              <span className="size-2.5 rounded-sm" style={{ background: S[s][1] }} />
-              {S[s][0]}
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
+      ))}
+      <div className="mt-1.5 font-mono text-[9px] text-faint">Capacity 5 items per week</div>
+    </Frame>
+  )
+}
+
+export function DocsMock() {
+  return (
+    <Frame className="px-4 pt-3">
+      <div className="caps text-[17px] leading-none font-bold tracking-[0.04em]">Q1 plan</div>
+      <div className="mt-1 font-mono text-[9px] text-faint">Edited by YA · 18 NOV</div>
+      <p className="mt-2.5 text-[11px] leading-snug text-muted">
+        Three goals for the quarter. Partner demos are tracked on the <span className="text-accent underline decoration-accent/30">Sales pipeline</span> board.
+      </p>
+      <ul className="mt-2 space-y-1 text-[11px]">
+        {[
+          ['Close two pilot agreements', true],
+          ['Ship the benchmark report', true],
+          ['Prepare the seed round data room', false],
+        ].map(([t, done]) => (
+          <li key={String(t)} className="flex items-center gap-1.5">
+            <span className={cx('grid size-3 place-items-center rounded-[2px] border', done ? 'border-fg bg-fg' : 'border-line-strong')}>
+              {done && (
+                <svg viewBox="0 0 10 10" className="size-2" fill="none" stroke="var(--bg)" strokeWidth="1.8">
+                  <path d="M2 5.2l2 2L8 3" />
+                </svg>
+              )}
+            </span>
+            <span className={cx(done && 'text-muted line-through decoration-faint')}>{t}</span>
+          </li>
+        ))}
+      </ul>
+    </Frame>
   )
 }

@@ -1,19 +1,30 @@
 import { useRef, useState, type ReactNode } from 'react'
-import { motion } from 'motion/react'
-import { differenceInCalendarDays, format, parseISO } from 'date-fns'
-import { AlertCircle, Check, ExternalLink, Pencil, Plus, Search, Star, Trash2, X } from 'lucide-react'
+import { differenceInCalendarDays, format, isThisYear, parseISO } from 'date-fns'
+import { Check, ExternalLink, Pencil, Plus, Search, Star, Trash2, X } from 'lucide-react'
 import { addTeammate, labelOf, setValue, updateColumn, useStore } from '../lib/store'
 import { COLOR_LIST, uid } from '../lib/seed'
 import type { Board, Column, Item, Label } from '../lib/types'
-import { Avatar, AvatarStack, Popover, cx } from './ui'
+import { Avatar, AvatarStack, Button, LabelPill, Popover, cx } from './ui'
+import { fmtDuration, timeTotal } from '../lib/formula'
+import { ConnectCell, ContactCell, CreatedCell, DependencyCell, FilesCell, FormulaCell, ItemIdCell, MirrorCell, TimeCell, UpdatedCell, VoteCell } from './cellsExtra'
 
 export type Range = { start: string; end: string }
 export const fmtDate = (d?: string) => (d ? format(parseISO(d), 'MMM d') : '')
+/** Timetable short date: "21 NOV" (year added when not this year). */
+export const fmtTimetable = (d?: string) => (d ? format(parseISO(d), isThisYear(parseISO(d)) ? 'd MMM' : 'd MMM yy').toUpperCase() : '')
 export const isDoneItem = (board: Board, item: Item) =>
   board.columns.some((c) => c.type === 'status' && labelOf(c, item.values[c.id])?.done)
+/** Days late for a deadline (0 when not overdue). */
+export const daysLate = (d?: string) => (d ? Math.max(0, differenceInCalendarDays(new Date(), parseISO(d))) : 0)
+/** An item is delayed when any of its date columns has passed and it is not done. */
+export const isDelayed = (board: Board, item: Item) =>
+  !isDoneItem(board, item) && board.columns.some((c) => c.type === 'date' && daysLate(item.values[c.id] as string | undefined) > 0)
+
+const FIELD = 'h-8 w-full rounded-md border border-line-strong bg-panel px-2 text-[13px] text-fg outline-none focus:border-accent'
+const POP_TITLE = 'caps px-2 pb-1 pt-1 text-[12px] font-semibold tracking-[0.12em] text-muted'
 
 /** Wrapper that turns a cell into a popover trigger. */
-function PopCell({
+export function PopCell({
   children,
   pop,
   width = 240,
@@ -28,7 +39,7 @@ function PopCell({
   const ref = useRef<HTMLButtonElement>(null)
   return (
     <>
-      <button ref={ref} onClick={() => setOpen((o) => !o)} className={cx('h-full w-full', className)}>
+      <button ref={ref} onClick={() => setOpen((o) => !o)} aria-expanded={open} className={cx('h-full w-full transition-colors', open && 'bg-hover', className)}>
         {children}
       </button>
       <Popover anchor={ref.current} open={open} onClose={() => setOpen(false)} width={width} align="center">
@@ -44,11 +55,13 @@ function LabelEditor({ board, col, onDone }: { board: Board; col: Column; onDone
   const save = () => (updateColumn(board.id, col.id, { labels: labels.filter((l) => l.name.trim()) }), onDone())
   return (
     <div className="space-y-1.5 p-1">
+      <div className={POP_TITLE}>Edit labels</div>
       {labels.map((l, i) => (
         <div key={l.id} className="flex items-center gap-1.5">
           <button
-            title="Change color"
-            className="size-5 shrink-0 rounded-md ring-1 ring-black/10"
+            title="Change colour"
+            aria-label="Change colour"
+            className="size-6 shrink-0 rounded-sm ring-1 ring-inset ring-black/10"
             style={{ background: l.color }}
             onClick={() => setLabels(labels.map((x, j) => (j === i ? { ...x, color: COLOR_LIST[(COLOR_LIST.indexOf(x.color) + 1) % COLOR_LIST.length] } : x)))}
           />
@@ -56,31 +69,32 @@ function LabelEditor({ board, col, onDone }: { board: Board; col: Column; onDone
             aria-label="Label name"
             value={l.name}
             onChange={(e) => setLabels(labels.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))}
-            className="h-7 min-w-0 flex-1 rounded-md border border-line bg-panel px-2 text-[13px] outline-none focus:border-accent"
+            className={cx(FIELD, 'h-7 min-w-0 flex-1')}
           />
           {col.type === 'status' && (
             <button
               title="Counts as done"
+              aria-pressed={!!l.done}
               onClick={() => setLabels(labels.map((x, j) => (j === i ? { ...x, done: !x.done } : x)))}
-              className={cx('grid size-7 place-items-center rounded-md', l.done ? 'bg-green-500/15 text-green-600' : 'text-faint hover:bg-hover')}
+              className={cx('grid size-7 place-items-center rounded-sm', l.done ? 'bg-accent-soft text-accent' : 'text-faint hover:bg-hover')}
             >
               <Check className="size-3.5" />
             </button>
           )}
-          <button title="Delete label" onClick={() => setLabels(labels.filter((_, j) => j !== i))} className="grid size-7 place-items-center rounded-md text-faint hover:bg-hover hover:text-red-500">
+          <button title="Delete label" aria-label="Delete label" onClick={() => setLabels(labels.filter((_, j) => j !== i))} className="grid size-7 place-items-center rounded-sm text-faint hover:bg-alert-soft hover:text-alert">
             <Trash2 className="size-3.5" />
           </button>
         </div>
       ))}
       <button
         onClick={() => setLabels([...labels, { id: uid('l_'), name: 'New label', color: COLOR_LIST[labels.length % COLOR_LIST.length] }])}
-        className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-[13px] text-muted hover:bg-hover"
+        className="flex h-8 w-full items-center gap-1.5 rounded-sm px-2 text-[13px] text-muted hover:bg-hover hover:text-fg"
       >
         <Plus className="size-3.5" /> New label
       </button>
-      <button onClick={save} className="h-8 w-full rounded-lg bg-accent text-[13px] font-medium text-white hover:brightness-110">
+      <Button variant="primary" onClick={save} className="w-full">
         Apply
-      </button>
+      </Button>
     </div>
   )
 }
@@ -90,43 +104,38 @@ export function StatusCell({ board, col, item }: { board: Board; col: Column; it
   const [editing, setEditing] = useState(false)
   return (
     <PopCell
-      width={editing ? 280 : 200}
+      width={editing ? 280 : 210}
+      className="flex items-center px-3 hover:bg-hover"
       pop={(close) =>
         editing ? (
           <LabelEditor board={board} col={col} onDone={() => (setEditing(false), close())} />
         ) : (
-          <div className="grid gap-1 p-0.5">
+          <div className="grid p-0.5">
             {col.labels?.map((l) => (
               <button
                 key={l.id}
                 onClick={() => (setValue(item.id, col.id, l.id), close())}
-                className="label-fill h-8 rounded-md text-[13px] font-medium text-white"
-                style={{ background: l.color }}
+                className={cx('flex h-9 items-center gap-2 rounded-sm px-2 text-left hover:bg-hover', l.id === label?.id && 'bg-accent-soft')}
               >
-                {l.name}
+                <LabelPill label={l} />
+                {l.id === label?.id && <Check className="ml-auto size-3.5 text-accent" />}
               </button>
             ))}
-            <button onClick={() => (setValue(item.id, col.id, null), close())} className="h-8 rounded-md border border-dashed border-line-strong text-[13px] text-muted hover:bg-hover">
-              Clear
+            <button onClick={() => (setValue(item.id, col.id, null), close())} className="flex h-9 items-center gap-2 rounded-sm px-2 text-[13px] text-muted hover:bg-hover">
+              <LabelPill /> Clear
             </button>
-            <button onClick={() => setEditing(true)} className="mt-1 flex h-8 items-center justify-center gap-1.5 rounded-md text-[13px] text-muted hover:bg-hover">
+            <div className="my-1 h-px bg-line" />
+            <button onClick={() => setEditing(true)} className="flex h-8 items-center gap-1.5 rounded-sm px-2 text-[13px] text-muted hover:bg-hover hover:text-fg">
               <Pencil className="size-3.5" /> Edit labels
             </button>
           </div>
         )
       }
     >
-      <motion.span
-        key={label?.id ?? 'none'}
-        initial={{ opacity: 0.4, scale: 0.94 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-        className={cx('label-fill relative grid h-full w-full place-items-center overflow-hidden px-2 text-[13px] font-medium', label ? 'text-white' : 'text-faint')}
-        style={{ background: label?.color ?? 'transparent' }}
-      >
-        <span className="truncate">{label?.name ?? ''}</span>
-        {label?.done && <span className="pointer-events-none absolute inset-y-0 right-0 w-1/3 bg-gradient-to-l from-white/20 to-transparent" />}
-      </motion.span>
+      {/* keyed so a new value ticks in like a flap board */}
+      <span key={label?.id ?? 'none'} className="flap flex min-w-0">
+        <LabelPill label={label} />
+      </span>
     </PopCell>
   )
 }
@@ -138,23 +147,28 @@ export function PeoplePicker({ value, onChange }: { value: string[]; onChange: (
   const list = Object.values(users).filter((u) => u.name.toLowerCase().includes(q.toLowerCase()))
   return (
     <div>
-      <div className="mb-1 flex items-center gap-2 rounded-lg border border-line px-2">
+      <div className="mb-1 flex items-center gap-2 rounded-md border border-line-strong px-2 focus-within:border-accent">
         <Search className="size-3.5 text-faint" />
-        <input autoFocus aria-label="Search people" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search names" className="h-8 flex-1 bg-transparent text-[13px] outline-none" />
+        <input autoFocus aria-label="Search people" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search names" className="h-8 flex-1 bg-transparent text-[13px] outline-none placeholder:text-faint" />
       </div>
       <div className="max-h-60 overflow-auto">
         {list.map((u) => {
           const on = value.includes(u.id)
           return (
-            <button key={u.id} onClick={() => onChange(on ? value.filter((x) => x !== u.id) : [...value, u.id])} className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[13px] hover:bg-hover">
-              <Avatar user={u} size={24} />
+            <button
+              key={u.id}
+              onClick={() => onChange(on ? value.filter((x) => x !== u.id) : [...value, u.id])}
+              aria-pressed={on}
+              className={cx('flex h-9 w-full items-center gap-2 rounded-sm px-2 text-left text-[13.5px]', on ? 'bg-accent-soft' : 'hover:bg-hover')}
+            >
+              <Avatar user={u} size={22} />
               <span className="flex-1 truncate">{u.name}</span>
               {on && <Check className="size-4 text-accent" />}
             </button>
           )
         })}
         {q && !list.length && (
-          <button onClick={() => onChange([...value, addTeammate(q).id])} className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-[13px] text-accent hover:bg-hover">
+          <button onClick={() => onChange([...value, addTeammate(q).id])} className="flex h-9 w-full items-center gap-2 rounded-sm px-2 text-[13.5px] text-accent hover:bg-hover">
             <Plus className="size-4" /> Add “{q}” to team
           </button>
         )}
@@ -167,11 +181,11 @@ export function PeopleCell({ col, item }: { col: Column; item: Item }) {
   const users = useStore((s) => s.user)
   const ids = (item.values[col.id] as string[] | undefined) ?? []
   return (
-    <PopCell width={250} pop={() => <PeoplePicker value={ids} onChange={(v) => setValue(item.id, col.id, v)} />} className="grid place-items-center hover:bg-hover">
+    <PopCell width={250} pop={() => <PeoplePicker value={ids} onChange={(v) => setValue(item.id, col.id, v)} />} className="flex items-center px-3 hover:bg-hover">
       {ids.length ? (
-        <AvatarStack users={ids.map((id) => users[id]).filter(Boolean)} size={26} />
+        <AvatarStack users={ids.map((id) => users[id]).filter(Boolean)} size={24} />
       ) : (
-        <span className="grid size-[26px] place-items-center rounded-full border border-dashed border-line-strong text-faint">
+        <span className="grid size-6 place-items-center rounded-full border border-dashed border-line-strong text-faint">
           <Plus className="size-3" />
         </span>
       )}
@@ -179,15 +193,31 @@ export function PeopleCell({ col, item }: { col: Column; item: Item }) {
   )
 }
 
-// ---------- date ----------
+// ---------- date: reads like a departure time ----------
+/** "THU 21 NOV" with the day number large; overdue carries a red +Nd delay tag. */
+export function Timetable({ value, late, today }: { value: string; late?: number; today?: boolean }) {
+  const d = parseISO(value)
+  const small = cx('font-mono text-[11px] font-medium uppercase tracking-[0.04em]', late ? 'text-alert' : 'text-faint')
+  return (
+    <span className="flex min-w-0 items-baseline gap-1.5 whitespace-nowrap">
+      <span className={small}>{format(d, 'EEE')}</span>
+      <span className={cx('font-mono text-[16px] font-semibold leading-none tracking-[-0.01em]', late ? 'text-alert' : 'text-fg')}>{format(d, 'dd')}</span>
+      <span className={small}>{format(d, isThisYear(d) ? 'MMM' : "MMM ''yy")}</span>
+      {!!late && <span className="self-center rounded-sm bg-alert px-1 py-[3px] font-mono text-[10.5px] font-semibold leading-none text-panel">+{late}d</span>}
+      {today && <span className="caps self-center rounded-sm border border-fg px-1 py-[2px] text-[10.5px] font-semibold leading-none tracking-[0.12em] text-fg">Today</span>}
+    </span>
+  )
+}
+
 export function DateCell({ board, col, item }: { board: Board; col: Column; item: Item }) {
   const v = item.values[col.id] as string | undefined
-  const overdue = v && differenceInCalendarDays(parseISO(v), new Date()) < 0 && !isDoneItem(board, item)
-  const soon = v && !overdue && differenceInCalendarDays(parseISO(v), new Date()) <= 1 && !isDoneItem(board, item)
+  const done = isDoneItem(board, item)
+  const late = done ? 0 : daysLate(v)
+  const isToday = !!v && !late && differenceInCalendarDays(parseISO(v), new Date()) === 0
   return (
     <PopCell
-      width={220}
-      className="hover:bg-hover"
+      width={232}
+      className="flex items-center px-3 hover:bg-hover"
       pop={(close) => (
         <div className="space-y-2 p-1">
           <input
@@ -196,27 +226,32 @@ export function DateCell({ board, col, item }: { board: Board; col: Column; item
             autoFocus
             defaultValue={v}
             onChange={(e) => setValue(item.id, col.id, e.target.value || null)}
-            className="h-9 w-full rounded-lg border border-line bg-panel px-2 text-[13px] outline-none focus:border-accent"
+            className={cx(FIELD, 'h-9 font-mono')}
           />
           <div className="flex gap-1">
             {[['Today', 0], ['Tomorrow', 1], ['+1 week', 7]].map(([n, d]) => (
-              <button key={n} onClick={() => (setValue(item.id, col.id, format(new Date(Date.now() + (d as number) * 864e5), 'yyyy-MM-dd')), close())} className="flex-1 rounded-md bg-panel-2 py-1 text-[12px] hover:bg-hover">
+              <button
+                key={n}
+                onClick={() => (setValue(item.id, col.id, format(new Date(Date.now() + (d as number) * 864e5), 'yyyy-MM-dd')), close())}
+                className="caps h-7 flex-1 rounded-sm border border-line-strong text-[12px] font-semibold tracking-[0.08em] hover:bg-hover"
+              >
                 {n}
               </button>
             ))}
           </div>
           {v && (
-            <button onClick={() => (setValue(item.id, col.id, null), close())} className="w-full rounded-md py-1 text-[12px] text-muted hover:bg-hover">
+            <button onClick={() => (setValue(item.id, col.id, null), close())} className="h-7 w-full rounded-sm text-[12.5px] text-muted hover:bg-hover hover:text-fg">
               Clear date
             </button>
           )}
         </div>
       )}
     >
-      <span className={cx('flex items-center justify-center gap-1 text-[13px]', overdue ? 'text-red-500' : soon ? 'text-orange-500' : 'text-fg')}>
-        {overdue && <AlertCircle className="size-3.5" />}
-        {fmtDate(v)}
-      </span>
+      {v && (
+        <span key={v + late} className={cx('flap flex min-w-0', done && 'opacity-60')}>
+          <Timetable value={v} late={late} today={isToday} />
+        </span>
+      )}
     </PopCell>
   )
 }
@@ -233,11 +268,11 @@ export function TimelineCell({ board, col, item, color }: { board: Board; col: C
   return (
     <PopCell
       width={240}
-      className="px-2"
+      className="px-3 hover:bg-hover"
       pop={() => (
-        <div className="grid gap-2 p-1 text-[12px] text-muted">
+        <div className="grid gap-2 p-1">
           {(['start', 'end'] as const).map((k) => (
-            <label key={k} className="grid gap-1">
+            <label key={k} className="caps grid gap-1 text-[12px] font-semibold tracking-[0.12em] text-muted">
               {k === 'start' ? 'Start' : 'End'}
               <input
                 type="date"
@@ -247,7 +282,7 @@ export function TimelineCell({ board, col, item, color }: { board: Board; col: C
                   if (next.end < next.start) next.end = next.start
                   setValue(item.id, col.id, next)
                 }}
-                className="h-9 rounded-lg border border-line bg-panel px-2 text-[13px] text-fg outline-none focus:border-accent"
+                className={cx(FIELD, 'h-9 font-mono normal-case tracking-normal')}
               />
             </label>
           ))}
@@ -255,28 +290,37 @@ export function TimelineCell({ board, col, item, color }: { board: Board; col: C
       )}
     >
       {v?.start ? (
-        <span className="relative block h-6 overflow-hidden rounded-full bg-panel-2 text-[12px] font-medium">
-          <span className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-500" style={{ width: `${pct}%`, background: color }} />
-          <span className="relative grid h-full place-items-center text-fg mix-blend-normal">
-            <span className="rounded px-1">{`${fmtDate(v.start)} – ${fmtDate(v.end)}`}</span>
+        <span className="flex flex-col gap-1.5" title={`${Math.round(pct)}% elapsed`}>
+          <span className="truncate text-left font-mono text-[11.5px] font-medium text-fg">{`${fmtTimetable(v.start)} – ${fmtTimetable(v.end)}`}</span>
+          <span className="block h-[3px] bg-line">
+            <span className="block h-full transition-[width] duration-300" style={{ width: `${pct}%`, background: color }} />
           </span>
         </span>
       ) : (
-        <span className="block h-6 rounded-full bg-panel-2" />
+        <span className="block h-[3px] bg-line" />
       )}
     </PopCell>
   )
 }
 
-// ---------- tags ----------
+// ---------- tags: outlined, colour as a small square ----------
+function Tag({ label, on }: { label: Label; on?: boolean }) {
+  return (
+    <span className={cx('inline-flex h-[22px] shrink-0 items-center gap-1.5 rounded-sm border px-1.5 text-[12px] font-medium', on ? 'border-accent bg-accent-soft text-fg' : 'border-line-strong text-fg')}>
+      <span className="size-[7px] shrink-0" style={{ background: label.color }} />
+      {label.name}
+    </span>
+  )
+}
+
 export function TagsCell({ board, col, item }: { board: Board; col: Column; item: Item }) {
   const ids = (item.values[col.id] as string[] | undefined) ?? []
   const [q, setQ] = useState('')
   const labels = col.labels ?? []
   return (
     <PopCell
-      width={240}
-      className="px-1.5 hover:bg-hover"
+      width={260}
+      className="px-2 hover:bg-hover"
       pop={() => (
         <div>
           <input
@@ -293,7 +337,7 @@ export function TagsCell({ board, col, item }: { board: Board; col: Column; item
               setQ('')
             }}
             placeholder="Type a tag, Enter to add"
-            className="mb-1 h-8 w-full rounded-lg border border-line bg-panel px-2 text-[13px] outline-none focus:border-accent"
+            className={cx(FIELD, 'mb-1')}
           />
           <div className="flex max-h-56 flex-wrap gap-1 overflow-auto p-1">
             {labels
@@ -301,16 +345,12 @@ export function TagsCell({ board, col, item }: { board: Board; col: Column; item
               .map((l) => {
                 const on = ids.includes(l.id)
                 return (
-                  <button
-                    key={l.id}
-                    onClick={() => setValue(item.id, col.id, on ? ids.filter((x) => x !== l.id) : [...ids, l.id])}
-                    className={cx('rounded-full px-2.5 py-1 text-[12px] font-medium transition', on ? 'text-white' : 'opacity-70 hover:opacity-100')}
-                    style={on ? { background: l.color } : { color: l.color, boxShadow: `inset 0 0 0 1px ${l.color}` }}
-                  >
-                    {l.name}
+                  <button key={l.id} aria-pressed={on} onClick={() => setValue(item.id, col.id, on ? ids.filter((x) => x !== l.id) : [...ids, l.id])} className="rounded-sm hover:bg-hover">
+                    <Tag label={l} on={on} />
                   </button>
                 )
               })}
+            {!labels.length && !q && <p className="px-1 py-1 text-[12.5px] text-muted">No tags yet. Type one and press Enter.</p>}
           </div>
         </div>
       )}
@@ -318,11 +358,7 @@ export function TagsCell({ board, col, item }: { board: Board; col: Column; item
       <span className="flex items-center gap-1 overflow-hidden">
         {ids.map((id) => {
           const l = labels.find((x) => x.id === id)
-          return l ? (
-            <span key={id} className="shrink-0 rounded-full px-2 py-0.5 text-[11.5px] font-medium" style={{ color: l.color, background: `color-mix(in oklab, ${l.color} 14%, transparent)` }}>
-              {l.name}
-            </span>
-          ) : null
+          return l ? <Tag key={id} label={l} /> : null
         })}
       </span>
     </PopCell>
@@ -350,11 +386,11 @@ function InlineInput({ item, col, type = 'text', render }: { item: Item; col: Co
           if (e.key === 'Enter') e.currentTarget.blur()
           if (e.key === 'Escape') setEditing(false)
         }}
-        className="h-full w-full bg-panel px-2 text-center text-[13px] outline-none ring-2 ring-inset ring-accent"
+        className={cx('h-full w-full bg-panel px-3 text-[13.5px] outline-none ring-2 ring-inset ring-accent', type === 'number' && 'text-right font-mono')}
       />
     )
   return (
-    <button onClick={() => setEditing(true)} className="h-full w-full truncate px-2 text-[13px] hover:bg-hover">
+    <button onClick={() => setEditing(true)} className="h-full w-full truncate px-3 text-[13.5px] transition-colors hover:bg-hover">
       {render(raw == null ? '' : String(raw))}
     </button>
   )
@@ -364,7 +400,7 @@ export function TextCell({ item, col }: { item: Item; col: Column }) {
   return <InlineInput item={item} col={col} render={(v) => <span className="block truncate text-left">{v}</span>} />
 }
 export function NumberCell({ item, col }: { item: Item; col: Column }) {
-  return <InlineInput item={item} col={col} type="number" render={(v) => (v === '' ? '' : <span className="font-mono tabular-nums">{fmtNumber(Number(v), col.unit)}</span>)} />
+  return <InlineInput item={item} col={col} type="number" render={(v) => (v === '' ? '' : <span className="block text-right font-mono text-[13px] tabular-nums">{fmtNumber(Number(v), col.unit)}</span>)} />
 }
 export const fmtNumber = (n: number, unit?: string) => {
   const s = n.toLocaleString(undefined, { maximumFractionDigits: 2 })
@@ -375,9 +411,16 @@ export function LinkCell({ item, col }: { item: Item; col: Column }) {
   const v = item.values[col.id] as string | undefined
   return (
     <div className="group relative h-full">
-      <InlineInput item={item} col={col} render={(x) => <span className="block truncate text-left text-accent">{x.replace(/^https?:\/\/(www\.)?/, '')}</span>} />
+      <InlineInput item={item} col={col} render={(x) => <span className="block truncate text-left text-accent underline decoration-accent/30 underline-offset-[3px]">{x.replace(/^https?:\/\/(www\.)?/, '')}</span>} />
       {v && /^https?:\/\//.test(v) && (
-        <a href={v} target="_blank" rel="noreferrer noopener" title="Open link" className="absolute right-1 top-1/2 hidden -translate-y-1/2 rounded bg-panel p-1 text-muted shadow-card hover:text-accent group-hover:block">
+        <a
+          href={v}
+          target="_blank"
+          rel="noreferrer noopener"
+          title="Open link"
+          aria-label="Open link"
+          className="absolute right-1 top-1/2 hidden -translate-y-1/2 rounded-sm border border-line-strong bg-panel p-1 text-muted hover:text-accent focus-visible:block group-hover:block"
+        >
           <ExternalLink className="size-3.5" />
         </a>
       )}
@@ -390,7 +433,7 @@ export function LongTextCell({ item, col }: { item: Item; col: Column }) {
   return (
     <PopCell
       width={320}
-      className="px-2 hover:bg-hover"
+      className="px-3 hover:bg-hover"
       pop={() => (
         <textarea
           autoFocus
@@ -398,11 +441,11 @@ export function LongTextCell({ item, col }: { item: Item; col: Column }) {
           defaultValue={v}
           onBlur={(e) => setValue(item.id, col.id, e.target.value)}
           rows={6}
-          className="w-full resize-none rounded-lg border border-line bg-panel p-2 text-[13px] outline-none focus:border-accent"
+          className="w-full resize-none rounded-md border border-line-strong bg-panel p-2 text-[13.5px] leading-relaxed outline-none focus:border-accent"
         />
       )}
     >
-      <span className="block truncate text-left text-[13px] text-muted">{v}</span>
+      <span className="block truncate text-left text-[13.5px] text-muted">{v}</span>
     </PopCell>
   )
 }
@@ -410,14 +453,10 @@ export function LongTextCell({ item, col }: { item: Item; col: Column }) {
 export function CheckboxCell({ item, col }: { item: Item; col: Column }) {
   const on = !!item.values[col.id]
   return (
-    <button aria-label={col.title} aria-pressed={on} onClick={() => setValue(item.id, col.id, !on)} className="grid h-full w-full place-items-center hover:bg-hover">
-      <motion.span
-        animate={{ scale: on ? [1, 1.25, 1] : 1 }}
-        transition={{ duration: 0.25 }}
-        className={cx('grid size-[18px] place-items-center rounded-md border-2 transition-colors', on ? 'border-green-500 bg-green-500 text-white' : 'border-line-strong')}
-      >
+    <button aria-label={col.title} aria-pressed={on} onClick={() => setValue(item.id, col.id, !on)} className="grid h-full w-full place-items-center transition-colors hover:bg-hover">
+      <span key={String(on)} className={cx('flap grid size-4 place-items-center rounded-sm border-[1.5px]', on ? 'border-fg bg-fg text-panel' : 'border-line-strong bg-panel')}>
         {on && <Check className="size-3" strokeWidth={3} />}
-      </motion.span>
+      </span>
     </button>
   )
 }
@@ -428,8 +467,8 @@ export function RatingCell({ item, col }: { item: Item; col: Column }) {
   return (
     <div className="flex h-full items-center justify-center gap-0.5" onMouseLeave={() => setHover(0)}>
       {[1, 2, 3, 4, 5].map((n) => (
-        <button key={n} aria-label={`Rate ${n}`} onMouseEnter={() => setHover(n)} onClick={() => setValue(item.id, col.id, n === v ? 0 : n)} className="p-0.5">
-          <Star className={cx('size-4 transition-transform hover:scale-125', (hover || v) >= n ? 'fill-amber-400 text-amber-400' : 'text-line-strong')} />
+        <button key={n} aria-label={`Rate ${n}`} aria-pressed={v >= n} onMouseEnter={() => setHover(n)} onClick={() => setValue(item.id, col.id, n === v ? 0 : n)} className="p-0.5">
+          <Star className={cx('size-[15px] transition-colors', (hover || v) >= n ? 'fill-fg text-fg' : 'text-line-strong')} />
         </button>
       ))}
     </div>
@@ -443,17 +482,19 @@ export function ProgressCell({ item, col }: { item: Item; col: Column }) {
       width={220}
       className="px-3 hover:bg-hover"
       pop={() => (
-        <label className="grid gap-2 p-2 text-[12px] text-muted">
-          Progress: {v}%
+        <label className="grid gap-2 p-2 text-[12.5px] text-muted">
+          <span>
+            Progress <span className="font-mono text-fg">{v}%</span>
+          </span>
           <input type="range" min={0} max={100} step={5} defaultValue={v} onChange={(e) => setValue(item.id, col.id, Number(e.target.value))} className="accent-[var(--accent)]" />
         </label>
       )}
     >
       <span className="flex items-center gap-2">
-        <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-panel-2">
-          <motion.span className="block h-full rounded-full" initial={false} animate={{ width: `${v}%` }} style={{ background: v === 100 ? '#00b884' : 'var(--accent)' }} />
+        <span className="h-[3px] flex-1 bg-line">
+          <span className={cx('block h-full transition-[width] duration-300', v === 100 ? 'bg-signal' : 'bg-fg')} style={{ width: `${v}%` }} />
         </span>
-        <span className="w-8 text-right font-mono text-[11.5px] tabular-nums text-muted">{v}%</span>
+        <span className="w-9 text-right font-mono text-[11.5px] tabular-nums text-muted">{v}%</span>
       </span>
     </PopCell>
   )
@@ -484,20 +525,46 @@ export function Cell({ board, col, item, groupColor }: { board: Board; col: Colu
       return <RatingCell col={col} item={item} />
     case 'progress':
       return <ProgressCell col={col} item={item} />
+    case 'formula':
+      return <FormulaCell board={board} col={col} item={item} />
+    case 'time':
+      return <TimeCell col={col} item={item} />
+    case 'dependency':
+      return <DependencyCell board={board} col={col} item={item} />
+    case 'connect':
+      return <ConnectCell board={board} col={col} item={item} />
+    case 'mirror':
+      return <MirrorCell board={board} col={col} item={item} />
+    case 'files':
+      return <FilesCell col={col} item={item} />
+    case 'email':
+    case 'phone':
+    case 'location':
+      return <ContactCell col={col} item={item} />
+    case 'vote':
+      return <VoteCell col={col} item={item} />
+    case 'created':
+      return <CreatedCell item={item} />
+    case 'updated':
+      return <UpdatedCell item={item} />
+    case 'itemId':
+      return <ItemIdCell item={item} />
     default:
       return <TextCell col={col} item={item} />
   }
 }
 
-/** Group footer summary: label battery, sums, date span. */
+const SUM_LABEL = 'caps block text-[10.5px] font-semibold tracking-[0.12em] text-faint'
+
+/** Group footer summary: segmented label battery, sums, date span. */
 export function Summary({ col, items }: { col: Column; items: Item[] }) {
   if (col.type === 'status' || col.type === 'priority') {
     const total = items.length || 1
     const counts = (col.labels ?? []).map((l) => ({ l, n: items.filter((i) => i.values[col.id] === l.id).length })).filter((x) => x.n)
     return (
-      <div className="flex h-5 w-full overflow-hidden rounded-[5px] bg-panel-2" title={counts.map((c) => `${c.l.name}: ${c.n}`).join(' · ')}>
+      <div className="flex h-1.5 w-full gap-[2px] bg-line" role="img" aria-label={counts.map((c) => `${c.l.name}: ${c.n}`).join(', ') || 'No values'} title={counts.map((c) => `${c.l.name}: ${c.n}`).join(' · ')}>
         {counts.map(({ l, n }) => (
-          <motion.span key={l.id} layout className="h-full" style={{ background: l.color, width: `${(n / total) * 100}%` }} />
+          <span key={l.id} className="h-full transition-[width] duration-300" style={{ background: l.color, width: `${(n / total) * 100}%` }} />
         ))}
       </div>
     )
@@ -506,32 +573,41 @@ export function Summary({ col, items }: { col: Column; items: Item[] }) {
     const nums = items.map((i) => i.values[col.id]).filter((v): v is number => typeof v === 'number')
     if (!nums.length) return null
     const sum = nums.reduce((a, b) => a + b, 0)
-    const val = col.type === 'number' ? fmtNumber(sum, col.unit) : `${Math.round(sum / nums.length)}${col.type === 'progress' ? '%' : ' avg'}`
+    const val = col.type === 'number' ? fmtNumber(sum, col.unit) : `${Math.round(sum / nums.length)}${col.type === 'progress' ? '%' : ''}`
     return (
-      <span className="text-center text-[12px]">
-        <span className="font-mono font-semibold tabular-nums">{val}</span>
-        <span className="block text-[10px] uppercase tracking-wide text-faint">{col.type === 'number' ? 'sum' : 'average'}</span>
+      <span className="text-center leading-tight">
+        <span className="font-mono text-[12.5px] font-semibold tabular-nums">{val}</span>
+        <span className={SUM_LABEL}>{col.type === 'number' ? 'Sum' : 'Average'}</span>
       </span>
     )
   }
   if (col.type === 'date') {
     const ds = items.map((i) => i.values[col.id] as string).filter(Boolean).sort()
-    return ds.length ? <span className="whitespace-nowrap rounded-full bg-panel-2 px-2 py-0.5 text-[11.5px] text-muted">{ds.length > 1 ? `${fmtDate(ds[0])} – ${fmtDate(ds.at(-1))}` : fmtDate(ds[0])}</span> : null
+    return ds.length ? <span className="whitespace-nowrap font-mono text-[11.5px] text-muted">{ds.length > 1 ? `${fmtTimetable(ds[0])} – ${fmtTimetable(ds.at(-1))}` : fmtTimetable(ds[0])}</span> : null
   }
   if (col.type === 'checkbox') {
     const n = items.filter((i) => i.values[col.id]).length
-    return <span className="text-[12px] text-muted">{n}/{items.length}</span>
+    return <span className="font-mono text-[12px] text-muted">{n}/{items.length}</span>
   }
   if (col.type === 'people') {
     const ids = new Set(items.flatMap((i) => (i.values[col.id] as string[]) ?? []))
-    return <span className="text-[12px] text-muted">{ids.size ? `${ids.size} people` : ''}</span>
+    return <span className="text-[12px] text-muted">{ids.size ? <><span className="font-mono">{ids.size}</span> people</> : ''}</span>
+  }
+  if (col.type === 'time' || col.type === 'vote') {
+    const total = items.reduce((a, i) => a + (col.type === 'time' ? timeTotal(i.values[col.id]) : ((i.values[col.id] as string[] | undefined) ?? []).length), 0)
+    return (
+      <span className="text-center leading-tight">
+        <span className="font-mono text-[12.5px] font-semibold tabular-nums">{col.type === 'time' ? fmtDuration(total) : total}</span>
+        <span className={SUM_LABEL}>{col.type === 'time' ? 'Total' : 'Votes'}</span>
+      </span>
+    )
   }
   return null
 }
 
 export function ClearBtn({ onClick }: { onClick: () => void }) {
   return (
-    <button onClick={onClick} className="rounded p-0.5 text-faint hover:bg-hover hover:text-fg" aria-label="Clear">
+    <button onClick={onClick} className="rounded-sm p-0.5 text-faint hover:bg-hover hover:text-fg" aria-label="Clear">
       <X className="size-3.5" />
     </button>
   )

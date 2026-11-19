@@ -1,9 +1,8 @@
 import { useMemo, useState } from 'react'
-import { AnimatePresence, motion } from 'motion/react'
-import { formatDistanceToNow } from 'date-fns'
-import { BellOff, CheckCheck } from 'lucide-react'
+import { CheckCheck } from 'lucide-react'
 import { markRead, navigate, openItem, useStore } from '../lib/store'
 import { Avatar, Button, cx } from '../components/ui'
+import { Stamp } from '../components/departure'
 
 export function Inbox() {
   const meId = useStore((s) => s.meId)
@@ -22,17 +21,21 @@ export function Inbox() {
   return (
     <div className="h-full overflow-y-auto px-8 py-8">
       <div className="mx-auto max-w-3xl">
-        <div className="mb-6 flex items-end justify-between">
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h1 className="font-display text-[30px] font-semibold tracking-tight">Inbox</h1>
-            <p className="text-[14px] text-muted">Mentions, assignments and automation alerts.</p>
+            <h1 className="caps text-[34px] font-bold leading-none">Inbox</h1>
+            <p className="mt-2 text-[14px] text-muted">Mentions, assignments and automation alerts.</p>
           </div>
           <div className="flex items-center gap-2">
-            <div className="flex rounded-lg border border-line bg-panel p-0.5 text-[13px]">
+            <div role="group" aria-label="Show" className="inline-flex h-8 items-center rounded-md border border-line bg-panel p-0.5">
               {(['all', 'unread'] as const).map((f) => (
-                <button key={f} onClick={() => setFilter(f)} className={cx('relative rounded-md px-3 py-1 capitalize', filter === f ? 'text-fg' : 'text-muted')}>
-                  {filter === f && <motion.span layoutId="inbox-filter" className="absolute inset-0 rounded-md bg-panel-2" />}
-                  <span className="relative">{f}</span>
+                <button
+                  key={f}
+                  aria-pressed={filter === f}
+                  onClick={() => setFilter(f)}
+                  className={cx('caps h-full rounded-sm px-3 text-[13px] font-semibold tracking-[0.1em] transition-colors', filter === f ? 'bg-ink text-on-ink dark:bg-signal dark:text-on-signal' : 'text-muted hover:text-fg')}
+                >
+                  {f}
                 </button>
               ))}
             </div>
@@ -41,42 +44,39 @@ export function Inbox() {
             </Button>
           </div>
         </div>
-        <div className="space-y-2">
-          <AnimatePresence initial={false}>
-            {list.map((n) => (
-              <motion.button
-                layout
-                key={n.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, x: 30 }}
+        <ul className="rounded-lg border border-line bg-panel">
+          {list.map((n) => (
+            <li key={n.id} className="border-b border-line last:border-b-0">
+              <button
                 onClick={() => {
                   markRead([n.id])
                   if (n.boardId && boards[n.boardId]) navigate({ page: 'board', boardId: n.boardId })
                   if (n.itemId) openItem(n.itemId)
                 }}
-                className={cx('flex w-full items-start gap-3 rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-card', n.read ? 'border-line bg-panel/60' : 'border-accent/30 bg-panel shadow-card')}
+                className="grid w-full grid-cols-[10px_28px_minmax(0,1fr)_auto] items-start gap-3 px-4 py-3 text-left hover:bg-hover"
               >
-                <Avatar user={users[n.actorId]} size={34} />
-                <span className="min-w-0 flex-1 text-[14px] leading-snug">
-                  <span className="font-medium">{users[n.actorId]?.name ?? 'Someone'}</span> <span className="text-muted">{n.text}</span>
-                  <span className="mt-1 block text-[12px] text-faint">
-                    {n.boardId && boards[n.boardId] ? `${boards[n.boardId].icon} ${boards[n.boardId].name} · ` : ''}
-                    {formatDistanceToNow(n.at, { addSuffix: true })}
-                  </span>
+                <span className="mt-2.5 grid place-items-center">{!n.read && (
+                    <>
+                      <span aria-hidden className="size-2 rounded-full bg-fg" />
+                      <span className="sr-only">Unread:</span>
+                    </>
+                  )}</span>
+                <Avatar user={users[n.actorId]} size={28} />
+                <span className={cx('min-w-0 text-[14px] leading-snug', n.read ? 'text-muted' : 'text-fg')}>
+                  <span className={n.read ? 'font-medium' : 'font-semibold'}>{users[n.actorId]?.name ?? 'Someone'}</span> <span className={n.read ? '' : 'font-semibold'}>{n.text}</span>
+                  {n.boardId && boards[n.boardId] && <span className="mt-0.5 block truncate text-[12.5px] font-normal text-faint">{boards[n.boardId].name}</span>}
                 </span>
-                {!n.read && <span className="mt-2 size-2.5 shrink-0 rounded-full bg-accent shadow-[0_0_0_4px_var(--accent-soft)]" />}
-              </motion.button>
-            ))}
-          </AnimatePresence>
+                <Stamp at={n.at} className="pt-0.5" />
+              </button>
+            </li>
+          ))}
           {!list.length && (
-            <div className="rounded-3xl border border-line bg-panel p-14 text-center shadow-card">
-              <BellOff className="mx-auto mb-4 size-11 text-line-strong" />
-              <p className="font-display text-xl font-semibold">Inbox zero</p>
-              <p className="text-[14px] text-muted">When teammates mention or assign you, it shows up here.</p>
-            </div>
+            <li className="px-6 py-10">
+              <p className="caps text-[19px] font-bold">{filter === 'unread' ? 'All read' : 'Inbox zero'}</p>
+              <p className="mt-1 text-[14px] text-muted">When teammates mention or assign you, it shows up here.</p>
+            </li>
           )}
-        </div>
+        </ul>
       </div>
     </div>
   )

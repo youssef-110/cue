@@ -3,34 +3,27 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 're
 import { createPortal } from 'react-dom'
 import clsx from 'clsx'
 import type { User } from '../lib/types'
+import { inkOn } from '../lib/seed'
 
 export const cx = clsx
 
+/** Cue mark: a signal tile whose C is a clock face, its hand pointing into the gap. */
 export function Logo({ size = 28, className }: { size?: number; className?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" className={className} aria-hidden>
-      <defs>
-        <linearGradient id="tl-g" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#6b5cff" />
-          <stop offset="0.55" stopColor="#4a7dff" />
-          <stop offset="1" stopColor="#14c4c4" />
-        </linearGradient>
-      </defs>
-      <rect width="32" height="32" rx="9" fill="url(#tl-g)" />
-      <g fill="none" stroke="#fff" strokeLinecap="round" strokeWidth="2.6">
-        <path d="M7 11.5q4.5-3.6 9 0t9 0" />
-        <path d="M7 17q4.5-3.6 9 0t5 0" opacity=".85" />
-        <path d="M7 22.5q3-2.4 6 0" opacity=".7" />
-      </g>
+      <rect width="32" height="32" rx="5" fill="#F6D11F" />
+      <path d="M22.4 9.6A9 9 0 1 0 22.4 22.4" fill="none" stroke="#121212" strokeWidth="4" />
+      <path d="M16 16h7.5" stroke="#121212" strokeWidth="2.4" />
+      <circle cx="16" cy="16" r="2.4" fill="#121212" />
     </svg>
   )
 }
 
-export function Wordmark({ className }: { className?: string }) {
+export function Wordmark({ className, onInk }: { className?: string; onInk?: boolean }) {
   return (
-    <span className={cx('flex items-center gap-2 font-display font-semibold tracking-tight', className)}>
+    <span className={cx('flex items-center gap-2', className)}>
       <Logo size={26} />
-      <span className="text-[17px]">tideline</span>
+      <span className={cx('font-display text-[22px] font-bold leading-none tracking-[0.01em]', onInk ? 'text-on-ink' : 'text-fg')}>Cue</span>
     </span>
   )
 }
@@ -48,23 +41,25 @@ export function Avatar({ user, size = 26, ring }: { user?: User; size?: number; 
   return (
     <span
       title={user.name}
-      className={cx('inline-grid shrink-0 select-none place-items-center rounded-full font-medium text-white', ring && 'ring-2 ring-panel')}
-      style={{ width: size, height: size, fontSize: size * 0.4, background: `linear-gradient(135deg, ${user.color}, color-mix(in oklab, ${user.color} 70%, #000))` }}
+      className={cx('inline-grid shrink-0 select-none place-items-center rounded-full font-semibold tracking-[0.02em]', ring && 'ring-2 ring-panel')}
+      style={{ width: size, height: size, fontSize: Math.round(size * 0.4), background: user.color, color: inkOn(user.color) }}
     >
       {initials(user.name)}
     </span>
   )
 }
 
-export function AvatarStack({ users, size = 24, max = 3 }: { users: User[]; size?: number; max?: number }) {
+export function AvatarStack({ users, size = 24, max = 3, ringClass = 'ring-panel' }: { users: User[]; size?: number; max?: number; ringClass?: string }) {
   const shown = users.slice(0, max)
   return (
     <span className="flex -space-x-1.5">
       {shown.map((u) => (
-        <Avatar key={u.id} user={u} size={size} ring />
+        <span key={u.id} className={cx('inline-flex rounded-full ring-2', ringClass)}>
+          <Avatar user={u} size={size} />
+        </span>
       ))}
       {users.length > max && (
-        <span className="inline-grid place-items-center rounded-full bg-panel-2 text-[10px] font-semibold text-muted ring-2 ring-panel" style={{ width: size, height: size }}>
+        <span className={cx('inline-grid place-items-center rounded-full bg-panel-2 font-mono text-[10px] font-medium text-muted ring-2', ringClass)} style={{ width: size, height: size }}>
           +{users.length - max}
         </span>
       )}
@@ -131,12 +126,12 @@ export function Popover({
       {open && (
         <motion.div
           ref={ref}
-          initial={{ opacity: 0, y: pos.up ? 6 : -6, scale: 0.97 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: pos.up ? 4 : -4, scale: 0.98, transition: { duration: 0.1 } }}
-          transition={{ type: 'spring', stiffness: 520, damping: 34 }}
+          initial={{ opacity: 0, y: pos.up ? 4 : -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, transition: { duration: 0.1 } }}
+          transition={{ duration: 0.14, ease: [0.2, 0.7, 0.2, 1] }}
           style={{ position: 'fixed', top: pos.top, left: pos.left, width, zIndex: 60 }}
-          className={cx('rounded-xl border border-line bg-panel p-1.5 shadow-pop', className)}
+          className={cx('rounded-lg border border-line-strong bg-panel p-1 shadow-pop', className)}
         >
           {children}
         </motion.div>
@@ -151,18 +146,18 @@ export function MenuItem({ icon, children, onClick, danger, active, kbd }: { ico
     <button
       onClick={onClick}
       className={cx(
-        'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px] transition-colors',
-        danger ? 'text-red-500 hover:bg-red-500/10' : 'text-fg hover:bg-hover',
-        active && 'bg-accent-soft text-accent',
+        'flex h-8 w-full items-center gap-2.5 rounded-sm px-2.5 text-left text-[13.5px] transition-colors',
+        danger ? 'text-alert hover:bg-alert-soft' : active ? 'bg-accent-soft text-accent' : 'text-fg hover:bg-hover',
       )}
     >
-      {icon && <span className="grid w-4 place-items-center text-muted [&>svg]:size-4">{icon}</span>}
+      {icon && <span className={cx('grid w-4 place-items-center [&>svg]:size-4', danger ? 'text-alert' : active ? 'text-accent' : 'text-muted')}>{icon}</span>}
       <span className="flex-1 truncate">{children}</span>
       {kbd && <kbd className="font-mono text-[11px] text-faint">{kbd}</kbd>}
     </button>
   )
 }
 
+/** primary = ink (signal in dark), outline = ruled, ghost = bare, soft = quiet filled (also the "on" state of toolbar toggles). */
 export function Button({
   children,
   variant = 'ghost',
@@ -173,11 +168,11 @@ export function Button({
     <button
       {...rest}
       className={cx(
-        'inline-flex h-8 items-center justify-center gap-1.5 rounded-lg px-3 text-[13px] font-medium transition-all active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 [&>svg]:size-4',
-        variant === 'primary' && 'bg-accent text-white shadow-[0_1px_0_rgb(255_255_255/0.2)_inset,0_4px_14px_-4px_var(--accent)] hover:brightness-110',
+        'inline-flex h-8 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3 text-[13.5px] font-medium transition-colors disabled:pointer-events-none disabled:opacity-45 [&>svg]:size-4',
+        variant === 'primary' && 'bg-ink font-semibold text-on-ink hover:bg-ink/85 dark:bg-signal dark:text-on-signal dark:hover:bg-signal/90',
         variant === 'ghost' && 'text-muted hover:bg-hover hover:text-fg',
-        variant === 'outline' && 'border border-line bg-panel text-fg hover:bg-hover',
-        variant === 'soft' && 'bg-accent-soft text-accent hover:brightness-95',
+        variant === 'outline' && 'border border-line-strong bg-panel text-fg hover:bg-hover',
+        variant === 'soft' && 'border border-line-strong bg-panel-2 text-fg hover:bg-hover',
         className,
       )}
     >
@@ -193,8 +188,8 @@ export function EditableText({ value, onCommit, className, placeholder }: { valu
   useEffect(() => setDraft(value), [value])
   if (!editing)
     return (
-      <span onClick={() => setEditing(true)} className={cx('cursor-text truncate rounded px-1 -mx-1 hover:ring-1 hover:ring-line-strong', className)}>
-        {value || <span className="text-faint">{placeholder}</span>}
+      <span onClick={() => setEditing(true)} className={cx('-mx-1 cursor-text truncate rounded-sm px-1 transition-shadow hover:ring-1 hover:ring-line-strong', className)}>
+        {value || <span className="opacity-60">{placeholder}</span>}
       </span>
     )
   return (
@@ -208,21 +203,26 @@ export function EditableText({ value, onCommit, className, placeholder }: { valu
         if (e.key === 'Enter') e.currentTarget.blur()
         if (e.key === 'Escape') (setDraft(value), setEditing(false))
       }}
-      className={cx('-mx-1 min-w-0 rounded bg-panel px-1 outline-none ring-2 ring-accent', className)}
+      className={cx('-mx-1 min-w-0 rounded-sm bg-panel px-1 text-fg outline-none ring-2 ring-accent', className)}
     />
   )
 }
 
-/** Small colored chip for a status / priority / tag label. */
+/** Small solid tag for a status / priority label; empty = dashed outline. */
 export function LabelPill({ label, className }: { label?: { name: string; color: string }; className?: string }) {
-  if (!label) return <span className={cx('rounded-md bg-panel-2 px-2 py-0.5 text-[12px] text-faint', className)}>—</span>
+  const base = 'caps inline-flex h-[22px] max-w-full items-center rounded-sm px-2 text-[12px] font-semibold leading-none tracking-[0.08em]'
+  if (!label) return <span className={cx(base, 'border border-dashed border-line-strong text-faint', className)}>—</span>
   return (
-    <span className={cx('inline-flex items-center rounded-md px-2 py-0.5 text-[12px] font-medium text-white', className)} style={{ background: label.color }}>
-      {label.name}
+    <span className={cx(base, className)} style={{ background: label.color, color: inkOn(label.color) }}>
+      <span className="truncate">{label.name}</span>
     </span>
   )
 }
 
-export function Kbd({ children }: { children: ReactNode }) {
-  return <kbd className="rounded border border-line bg-panel-2 px-1.5 py-0.5 font-mono text-[10.5px] text-muted">{children}</kbd>
+export function Kbd({ children, onInk }: { children: ReactNode; onInk?: boolean }) {
+  return (
+    <kbd className={cx('rounded-sm border px-1.5 py-0.5 font-mono text-[10.5px]', onInk ? 'border-on-ink/20 text-on-ink-muted' : 'border-line-strong bg-panel-2 text-muted')}>
+      {children}
+    </kbd>
+  )
 }

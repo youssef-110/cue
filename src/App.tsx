@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { Toaster, toast } from 'sonner'
 import { useShallow } from 'zustand/react/shallow'
@@ -9,18 +9,22 @@ import { checkAccess } from './lib/team'
 import { Sidebar } from './components/Sidebar'
 import { ItemPanel } from './components/ItemPanel'
 import { CommandPalette } from './components/CommandPalette'
-import { ClaimWorkspace, NotOnTeam, Onboarding, SignIn, Splash, VerifyEmail } from './pages/Auth'
+import { ChangePassword, ClaimWorkspace, NotOnTeam, Onboarding, SignIn, Splash } from './pages/Auth'
 import { BoardPage } from './pages/BoardPage'
 import { MyWork } from './pages/MyWork'
 import { Inbox } from './pages/Inbox'
 import { Home } from './pages/Home'
+import { ArchivePage } from './pages/ArchivePage'
+import { DocPage } from './pages/DocPage'
+// recharts-heavy, loaded on demand
+const Dashboards = lazy(() => import('./pages/Dashboards').then((m) => ({ default: m.Dashboards })))
 
 const LOCAL_ME = 'tideline:me'
 
 export default function App() {
   const { ready, theme, meId, route } = useStore(useShallow((s) => ({ ready: s.ready, theme: s.theme, meId: s.meId, route: s.route })))
   const hasProfile = useStore((s) => !!s.user[s.meId])
-  const [session, setSession] = useState<'loading' | 'out' | 'unverified' | 'claim' | 'denied' | 'in'>(auth ? 'loading' : 'in')
+  const [session, setSession] = useState<'loading' | 'out' | 'password' | 'claim' | 'denied' | 'in'>(auth ? 'loading' : 'in')
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark')
@@ -34,11 +38,11 @@ export default function App() {
     }
     return onAuthStateChanged(auth, async (u) => {
       if (!u) return setSession('out')
-      if (!u.emailVerified) return setSession('unverified')
       try {
         const access = await checkAccess()
-        if (access === 'claim' || access === 'denied') return setSession(access)
-        useStore.setState({ isAdmin: access === 'admin' })
+        if (access.kind !== 'member') return setSession(access.kind)
+        if (access.member.mustChangePassword) return setSession('password')
+        useStore.setState({ isAdmin: access.member.role === 'admin', role: access.member.role })
         if (!useStore.getState().ready) await init(cloudAdapter(db!, u.uid), u.uid)
         setSession('in')
       } catch (e) {
@@ -83,7 +87,7 @@ export default function App() {
   let body
   if (session === 'loading' || (session === 'in' && !ready)) body = <Splash />
   else if (session === 'out') body = <SignIn />
-  else if (session === 'unverified') body = <VerifyEmail />
+  else if (session === 'password') body = <ChangePassword />
   else if (session === 'claim') body = <ClaimWorkspace />
   else if (session === 'denied') body = <NotOnTeam />
   else if (!meId || !hasProfile) body = <Onboarding localKey={LOCAL_ME} />
@@ -94,14 +98,30 @@ export default function App() {
         <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
           <AnimatePresence mode="wait">
             <motion.div
-              key={route.page === 'board' ? route.boardId : route.page}
-              initial={{ opacity: 0, y: 6 }}
+              key={route.page === 'board' ? route.boardId : route.page === 'doc' ? route.id : route.page}
+              initial={{ opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4, transition: { duration: 0.1 } }}
-              transition={{ duration: 0.22, ease: [0.2, 0.8, 0.2, 1] }}
+              exit={{ opacity: 0, transition: { duration: 0.08 } }}
+              transition={{ duration: 0.16, ease: [0.2, 0.7, 0.2, 1] }}
               className="flex min-h-0 flex-1 flex-col"
             >
-              {route.page === 'board' ? <BoardPage boardId={route.boardId} viewId={route.viewId} /> : route.page === 'my-work' ? <MyWork /> : route.page === 'inbox' ? <Inbox /> : <Home />}
+              {route.page === 'board' ? (
+                <BoardPage boardId={route.boardId} viewId={route.viewId} />
+              ) : route.page === 'my-work' ? (
+                <MyWork />
+              ) : route.page === 'inbox' ? (
+                <Inbox />
+              ) : route.page === 'archive' ? (
+                <ArchivePage />
+              ) : route.page === 'doc' ? (
+                <DocPage id={route.id} />
+              ) : route.page === 'dashboards' ? (
+                <Suspense fallback={<div className="flex-1 animate-pulse bg-panel-2/40" />}>
+                  <Dashboards id={route.id} />
+                </Suspense>
+              ) : (
+                <Home />
+              )}
             </motion.div>
           </AnimatePresence>
         </main>
@@ -113,7 +133,14 @@ export default function App() {
   return (
     <>
       {body}
-      <Toaster theme={theme} position="bottom-right" toastOptions={{ className: '!rounded-xl !border-line !bg-panel !text-fg !shadow-pop' }} />
+      <Toaster
+        theme={theme}
+        position="bottom-right"
+        toastOptions={{
+          className: '!rounded-lg !border !border-line-strong !bg-panel !font-sans !text-[13.5px] !text-fg !shadow-pop',
+          classNames: { error: '!border-alert [&_[data-icon]]:!text-alert', success: '[&_[data-icon]]:!text-fg', description: '!text-muted' },
+        }}
+      />
     </>
   )
 }

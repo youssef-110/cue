@@ -1,10 +1,13 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'motion/react'
-import { X } from 'lucide-react'
+import { Check, X } from 'lucide-react'
 import { TEMPLATES } from '../lib/seed'
 import { createBoardFromTemplate } from '../lib/store'
-import { cx } from './ui'
+import { Button, cx } from './ui'
+
+const dialogField =
+  'h-10 w-full rounded-md border border-line bg-panel px-3 text-[14px] text-fg outline-none placeholder:text-faint focus:border-accent focus:ring-1 focus:ring-accent'
 
 export function Modal({ open, onClose, children, width = 640, title }: { open: boolean; onClose: () => void; children: ReactNode; width?: number; title?: string }) {
   useEffect(() => {
@@ -16,23 +19,23 @@ export function Modal({ open, onClose, children, width = 640, title }: { open: b
   return createPortal(
     <AnimatePresence>
       {open && (
-        <motion.div className="fixed inset-0 z-50 grid place-items-center p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-          <div className="absolute inset-0 bg-[#0b0d1a]/40 backdrop-blur-[3px]" onClick={onClose} />
+        <motion.div className="fixed inset-0 z-50 grid place-items-center p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }}>
+          <div className="absolute inset-0 bg-ink/45" onClick={onClose} />
           <motion.div
             role="dialog"
             aria-modal
             aria-label={title}
-            initial={{ opacity: 0, y: 20, scale: 0.97 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 10, scale: 0.98 }}
-            transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-            className="relative max-h-[86vh] w-full overflow-auto rounded-2xl border border-line bg-panel shadow-pop"
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 2, transition: { duration: 0.1 } }}
+            transition={{ duration: 0.16, ease: 'easeOut' }}
+            className="relative max-h-[86vh] w-full overflow-auto rounded-lg border border-line-strong bg-panel shadow-pop"
             style={{ maxWidth: width }}
           >
             {title && (
-              <div className="sticky top-0 z-10 flex items-center border-b border-line bg-panel/95 px-6 py-4 backdrop-blur">
-                <h2 className="font-display text-[19px] font-semibold tracking-tight">{title}</h2>
-                <button onClick={onClose} aria-label="Close" className="ml-auto grid size-8 place-items-center rounded-lg text-muted hover:bg-hover">
+              <div className="sticky top-0 z-10 flex items-center border-b-2 border-fg bg-panel py-3 pl-6 pr-4">
+                <h2 className="caps text-[22px] font-bold leading-none">{title}</h2>
+                <button onClick={onClose} aria-label="Close" className="ml-auto grid size-8 place-items-center rounded-md text-muted transition-colors hover:bg-hover hover:text-fg">
                   <X className="size-4" />
                 </button>
               </div>
@@ -50,7 +53,7 @@ export function TemplateModal({ workspaceId, onClose }: { workspaceId: string | 
   const [name, setName] = useState('')
   const [pick, setPick] = useState('blank')
   return (
-    <Modal open={!!workspaceId} onClose={onClose} title="Create a board" width={720}>
+    <Modal open={!!workspaceId} onClose={onClose} title="Create a board" width={640}>
       <form
         className="p-6"
         onSubmit={(e) => {
@@ -60,41 +63,44 @@ export function TemplateModal({ workspaceId, onClose }: { workspaceId: string | 
           onClose()
         }}
       >
-        <input
-          autoFocus
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Board name"
-          aria-label="Board name"
-          className="mb-5 h-11 w-full rounded-xl border border-line bg-panel px-3.5 text-[15px] outline-none focus:border-accent focus:ring-4 focus:ring-accent/15"
-        />
-        <div className="grid gap-3 sm:grid-cols-2">
-          {TEMPLATES.map((t, i) => (
-            <motion.button
-              type="button"
-              key={t.id}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.04 }}
-              onClick={() => setPick(t.id)}
-              className={cx(
-                'flex items-start gap-3 rounded-xl border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-card',
-                pick === t.id ? 'border-accent bg-accent-soft ring-4 ring-accent/10' : 'border-line',
-              )}
-            >
-              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-panel-2 text-[20px]">{t.icon}</span>
-              <span>
-                <span className="block text-[14px] font-medium">{t.name}</span>
-                <span className="text-[12.5px] text-muted">{t.description}</span>
-              </span>
-            </motion.button>
-          ))}
+        <label className="mb-5 block">
+          <span className="caps mb-1.5 block text-[12px] font-semibold tracking-[0.12em] text-muted">Board name</span>
+          <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Uses the template name if empty" aria-label="Board name" className={dialogField} />
+        </label>
+        <p id="tpl-label" className="caps mb-1.5 text-[12px] font-semibold tracking-[0.12em] text-muted">
+          Start from
+        </p>
+        <div role="radiogroup" aria-labelledby="tpl-label" className="rounded-lg border border-line">
+          {TEMPLATES.map((t) => {
+            const on = pick === t.id
+            return (
+              <button
+                type="button"
+                role="radio"
+                aria-checked={on}
+                key={t.id}
+                onClick={() => setPick(t.id)}
+                className={cx(
+                  'flex w-full items-start gap-3 border-b border-line px-4 py-3 text-left transition-colors first:rounded-t-lg last:rounded-b-lg last:border-b-0',
+                  on ? 'bg-accent-soft shadow-[inset_0_0_0_1px_var(--accent)]' : 'hover:bg-hover',
+                )}
+              >
+                <span className={cx('mt-0.5 grid size-4 shrink-0 place-items-center rounded-sm border', on ? 'border-accent bg-accent text-panel' : 'border-line-strong')}>{on && <Check className="size-3" strokeWidth={3} />}</span>
+                <span className="min-w-0">
+                  <span className="block text-[14px] font-medium">{t.name}</span>
+                  <span className="text-[13px] text-muted">{t.description}</span>
+                </span>
+              </button>
+            )
+          })}
         </div>
         <div className="mt-6 flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="h-10 rounded-xl px-4 text-[13.5px] text-muted hover:bg-hover">
+          <Button type="button" variant="ghost" className="h-9" onClick={onClose}>
             Cancel
-          </button>
-          <button className="h-10 rounded-xl bg-accent px-5 text-[13.5px] font-medium text-white shadow-[0_8px_24px_-8px_var(--accent)] hover:brightness-110">Create board</button>
+          </Button>
+          <Button variant="primary" className="h-9 px-4">
+            Create board
+          </Button>
         </div>
       </form>
     </Modal>

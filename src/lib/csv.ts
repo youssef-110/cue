@@ -1,7 +1,11 @@
 import { isValid, parse, format } from 'date-fns'
 import { COLOR_LIST, COLORS, uid } from './seed'
-import { addTeammate, boardItems, labelOf, navigate, put, useStore } from './store'
+import { addTeammate, boardItems, labelOf, navigate, put, useStore, visibleItem } from './store'
 import type { Board, Column, Item } from './types'
+import { cellScalar, fmtDuration, timeTotal } from './formula'
+
+// Exported via cellScalar (names for linked items, counts for votes, computed values).
+const SCALAR_TYPES: Column['type'][] = ['formula', 'dependency', 'connect', 'mirror', 'vote', 'created', 'updated', 'itemId']
 
 /** RFC 4180 parser: quotes, escaped quotes, newlines inside quotes. */
 export function parseCSV(text: string): string[][] {
@@ -37,6 +41,16 @@ export function exportBoardCSV(board: Board) {
   const groups = new Map(board.groups.map((g) => [g.id, g.title]))
   const cellText = (c: Column, i: Item): string => {
     const v = i.values[c.id]
+    if (c.type === 'time') return v ? fmtDuration(timeTotal(v)) : ''
+    if (c.type === 'files') return ((v as { name: string; url: string }[] | undefined) ?? []).map((f) => `${f.name} (${f.url})`).join(', ')
+    if (SCALAR_TYPES.includes(c.type)) {
+      try {
+        const x = cellScalar(board, c, i, { users, items: useStore.getState().item, boards: useStore.getState().board })
+        return x == null ? '' : String(x)
+      } catch {
+        return '' // formula error
+      }
+    }
     if (v == null) return ''
     if (c.type === 'status' || c.type === 'priority') return labelOf(c, v)?.name ?? ''
     if (c.type === 'tags') return (v as string[]).map((id) => labelOf(c, id)?.name).filter(Boolean).join(', ')
@@ -47,7 +61,7 @@ export function exportBoardCSV(board: Board) {
   const rows = [
     ['Item', 'Group', ...board.columns.map((c) => c.title)],
     ...boardItems(board.id)
-      .filter((i) => !i.parentId)
+      .filter((i) => !i.parentId && visibleItem(i))
       .map((i) => [i.name, groups.get(i.groupId) ?? '', ...board.columns.map((c) => cellText(c, i))]),
   ]
   const blob = new Blob(['﻿' + rows.map((r) => r.map(esc).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' })
@@ -68,7 +82,37 @@ const EMPTY = /^(nan|nat|null|none|n\/a|-)?$/i
 
 /** Build a new board from CSV text; infers column types from headers + values. */
 export function importCSV(text: string, workspaceId: string, name: string) {
-  const [header, ...body] = parseCSV(text)
+  const { board, n } = importTable(parseCSV(text), workspaceId, name)
+  navigate({ page: 'board', boardId: board.id })
+  return n
+}
+
+/** Each non-empty sheet of an .xlsx workbook becomes a board (same inference as CSV). */
+export async function importXlsx(file: File, workspaceId: string) {
+  const { default: readXlsxFile } = await import('read-excel-file/browser')
+  const sheets = await readXlsxFile(file)
+  const base = file.name.replace(/\.xlsx$/i, '')
+  // Excel dates arrive as UTC midnight, so take the UTC calendar day
+  const text = (v: unknown) => (v == null ? '' : v instanceof Date ? v.toISOString().slice(0, 10) : String(v))
+  let boards = 0
+  let items = 0
+  let first = ''
+  for (const sheet of sheets) {
+    const rows = sheet.data.map((r) => r.map(text)).filter((r) => r.some((c) => c.trim()))
+    if (rows.length < 2) continue // empty, or headers only
+    const { board, n } = importTable(rows, workspaceId, sheets.length > 1 ? `${base} – ${sheet.sheet}` : base)
+    boards++
+    items += n
+    first ||= board.id
+  }
+  if (!boards) throw new Error('The workbook has no sheets with rows')
+  navigate({ page: 'board', boardId: first })
+  return { boards, items }
+}
+
+/** Build a new board from a table (first row = headers); infers column types from headers + values. */
+export function importTable(rows: string[][], workspaceId: string, name: string) {
+  const [header, ...body] = rows
   if (!header || !body.length) throw new Error('The file has no rows')
   const clean = (s = '') => (EMPTY.test(s.trim()) ? '' : s.trim())
   const nameIdx = 0
@@ -147,6 +191,5 @@ export function importCSV(text: string, workspaceId: string, name: string) {
     put('item', { id: uid('i_'), boardId: board.id, groupId: g.id, name: itemName, values, order: ri, createdAt: Date.now(), createdBy: useStore.getState().meId })
     n++
   })
-  navigate({ page: 'board', boardId: board.id })
-  return n
+  return { board, n }
 }

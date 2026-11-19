@@ -1,38 +1,49 @@
 import { useEffect, useState } from 'react'
-import { collection, deleteDoc, doc, getDoc, onSnapshot, setDoc, updateDoc, writeBatch } from 'firebase/firestore'
+import { collection, doc, getDoc, onSnapshot, updateDoc, writeBatch } from 'firebase/firestore'
 import { auth, db } from './sync'
 
-// Team allow-list lives in `members/{lowercased email}`; Firestore rules enforce it.
-export type Role = 'admin' | 'member'
+// Team members live in `members/{auth uid}`; Firestore rules enforce access.
+// Accounts are username + password. Firebase Auth needs an email, so each
+// username maps to `<username>@cue.invalid` (a reserved domain: no mail is ever sent).
+export type Role = 'admin' | 'member' | 'viewer'
 export interface Member {
-  email: string
+  uid: string
+  username: string
+  name: string
   role: Role
   addedBy: string
   addedAt: number
+  mustChangePassword?: boolean
 }
 
-const myEmail = () => auth?.currentUser?.email?.toLowerCase() ?? ''
+export const LOGIN_DOMAIN = 'cue.invalid'
+export const USERNAME_RE = /^[a-z0-9][a-z0-9._-]{1,31}$/
+export const normalizeUsername = (u: string) => u.trim().toLowerCase()
+export const loginEmail = (username: string) => `${normalizeUsername(username)}@${LOGIN_DOMAIN}`
+export const usernameOf = (email?: string | null) => (email ?? '').replace(`@${LOGIN_DOMAIN}`, '')
 
-export type Access = 'member' | 'admin' | 'claim' | 'denied'
+export type Access = { kind: 'member'; member: Member } | { kind: 'claim' } | { kind: 'denied' }
 
-/** Is the signed-in user on the team? 'claim' = brand-new workspace with no admin yet. */
+/** Is the signed-in account on the team? 'claim' = brand-new workspace, owner not set up yet. */
 export async function checkAccess(): Promise<Access> {
-  if (!db) return 'denied'
+  const u = auth?.currentUser
+  if (!db || !u) return { kind: 'denied' }
   try {
-    const m = await getDoc(doc(db, 'members', myEmail()))
-    if (m.exists()) return (m.data() as Member).role === 'admin' ? 'admin' : 'member'
+    const m = await getDoc(doc(db, 'members', u.uid))
+    if (m.exists()) return { kind: 'member', member: m.data() as Member }
   } catch {
     // not a member: rules deny the read
   }
   const setup = await getDoc(doc(db, 'meta', 'setup'))
-  return setup.exists() ? 'denied' : 'claim'
+  return setup.exists() ? { kind: 'denied' } : { kind: 'claim' }
 }
 
-/** The owner email baked into the deployed rules claims an empty workspace once and becomes admin. */
-export async function claimWorkspace() {
-  const email = myEmail()
+/** The owner login baked into the deployed rules claims an empty workspace once and becomes admin. */
+export async function claimWorkspace(name: string) {
+  const u = auth!.currentUser!
   const b = writeBatch(db!)
-  b.set(doc(db!, 'members', email), { email, role: 'admin', addedBy: email, addedAt: Date.now() } satisfies Member)
+  const member: Member = { uid: u.uid, username: usernameOf(u.email), name, role: 'admin', addedBy: u.uid, addedAt: Date.now() }
+  b.set(doc(db!, 'members', u.uid), member)
   b.set(doc(db!, 'meta', 'setup'), { at: Date.now() })
   await b.commit()
 }
@@ -46,14 +57,38 @@ export function useMembers() {
   return list
 }
 
-export const normalizeEmail = (e: string) => e.trim().toLowerCase()
-export const validEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)
+export const clearPasswordFlag = () => updateDoc(doc(db!, 'members', auth!.currentUser!.uid), { mustChangePassword: false })
 
-export async function addMember(email: string, role: Role) {
-  const e = normalizeEmail(email)
-  if (!validEmail(e)) throw new Error('That doesn’t look like an email address')
-  await setDoc(doc(db!, 'members', e), { email: e, role, addedBy: myEmail(), addedAt: Date.now() } satisfies Member)
+// ---------- admin server (creates accounts, resets passwords) ----------
+const API = (import.meta.env.VITE_ADMIN_API as string | undefined) ?? '/api/team'
+
+async function call<T>(body: Record<string, unknown>): Promise<T> {
+  const token = await auth!.currentUser!.getIdToken()
+  const res = await fetch(API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+  }).catch(() => {
+    throw new Error('The team server is not reachable. Check your connection and try again.')
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.error ?? `Team server error (${res.status})`)
+  return data as T
 }
-export const setRole = (email: string, role: Role) => updateDoc(doc(db!, 'members', email), { role })
-export const removeMember = (email: string) => deleteDoc(doc(db!, 'members', email))
-export { myEmail }
+
+export const createAccount = (p: { username: string; name: string; password: string; role: Role }) => call<{ uid: string }>({ action: 'create', ...p })
+export const resetPassword = (uid: string, password: string) => call<{ ok: true }>({ action: 'reset', uid, password })
+export const setRole = (uid: string, role: Role) => call<{ ok: true }>({ action: 'role', uid, role })
+export const removeAccount = (uid: string) => call<{ ok: true }>({ action: 'remove', uid })
+
+/** Temporary password: 16 random characters (~79 bits) in groups of 4, no look-alike characters. */
+export function tempPassword() {
+  const alphabet = 'abcdefghjkmnpqrstuvwxyz23456789' // 31 symbols, no 0/o/1/l/i
+  const out: string[] = []
+  const buf = new Uint8Array(1)
+  while (out.length < 16) {
+    crypto.getRandomValues(buf)
+    if (buf[0] < 248) out.push(alphabet[buf[0] % 31]) // reject to avoid modulo bias (248 = 8 * 31)
+  }
+  return out.join('').match(/.{4}/g)!.join('-')
+}

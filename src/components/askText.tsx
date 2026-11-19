@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Modal } from './TemplateModal'
+import { Button } from './ui'
 
 /** Styled replacement for window.prompt(). Resolves null on cancel. */
 export function askText(title: string, initial = '', cta = 'Save'): Promise<string | null> {
@@ -16,7 +17,7 @@ export function askText(title: string, initial = '', cta = 'Save'): Promise<stri
     function Dialog({ open }: { open: boolean }) {
       const [v, setV] = useState(initial)
       return (
-        <Modal open={open} onClose={() => done(null)} title={title} width={420}>
+        <Modal open={open} onClose={() => done(null)} title={title} width={440}>
           <form
             className="p-6"
             onSubmit={(e) => {
@@ -30,15 +31,15 @@ export function askText(title: string, initial = '', cta = 'Save'): Promise<stri
               value={v}
               onChange={(e) => setV(e.target.value)}
               onFocus={(e) => e.target.select()}
-              className="h-11 w-full rounded-xl border border-line bg-panel px-3.5 text-[15px] outline-none focus:border-accent focus:ring-4 focus:ring-accent/15"
+              className="h-10 w-full rounded-md border border-line bg-panel px-3 text-[14px] text-fg outline-none focus:border-accent focus:ring-1 focus:ring-accent"
             />
             <div className="mt-5 flex justify-end gap-2">
-              <button type="button" onClick={() => done(null)} className="h-10 rounded-xl px-4 text-[13.5px] text-muted hover:bg-hover">
+              <Button type="button" variant="ghost" className="h-9" onClick={() => done(null)}>
                 Cancel
-              </button>
-              <button disabled={!v.trim()} className="h-10 rounded-xl bg-accent px-5 text-[13.5px] font-medium text-white hover:brightness-110 disabled:opacity-50">
+              </Button>
+              <Button variant="primary" className="h-9 px-4" disabled={!v.trim()}>
                 {cta}
-              </button>
+              </Button>
             </div>
           </form>
         </Modal>

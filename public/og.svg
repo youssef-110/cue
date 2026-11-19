@@ -1,52 +1,168 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
-  <defs>
-    <linearGradient id="logo" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#6b5cff"/>
-      <stop offset=".55" stop-color="#4a7dff"/>
-      <stop offset="1" stop-color="#14c4c4"/>
-    </linearGradient>
-    <radialGradient id="ga" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(180 90) scale(560)">
-      <stop offset="0" stop-color="#5b5bf0" stop-opacity=".55"/>
-      <stop offset="1" stop-color="#5b5bf0" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="gb" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1080 160) scale(520)">
-      <stop offset="0" stop-color="#4a7dff" stop-opacity=".45"/>
-      <stop offset="1" stop-color="#4a7dff" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="gc" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(820 640) scale(520)">
-      <stop offset="0" stop-color="#14c4c4" stop-opacity=".45"/>
-      <stop offset="1" stop-color="#14c4c4" stop-opacity="0"/>
-    </radialGradient>
-    <pattern id="grid" width="44" height="44" patternUnits="userSpaceOnUse">
-      <path d="M44 0H0V44" fill="none" stroke="#ffffff" stroke-opacity=".05"/>
-    </pattern>
-  </defs>
+  <title>Cue: every task has a departure time</title>
+  <rect width="1200" height="630" fill="#f4f3ee"/>
+  <rect width="1200" height="420" fill="#f6d11f"/>
 
-  <rect width="1200" height="630" fill="#0d0f1a"/>
-  <rect width="1200" height="630" fill="url(#grid)"/>
-  <rect width="1200" height="630" fill="url(#ga)"/>
-  <rect width="1200" height="630" fill="url(#gb)"/>
-  <rect width="1200" height="630" fill="url(#gc)"/>
-
-  <g transform="translate(96 104)">
-    <rect width="88" height="88" rx="25" fill="url(#logo)"/>
-    <g fill="none" stroke="#fff" stroke-linecap="round" stroke-width="7.2" transform="scale(2.75)">
-      <path d="M7 11.5q4.5-3.6 9 0t9 0"/>
-      <path d="M7 17q4.5-3.6 9 0t5 0" opacity=".85"/>
-      <path d="M7 22.5q3-2.4 6 0" opacity=".7"/>
+  <g transform="translate(80 52)">
+    <g transform="scale(1.75)">
+      <path d="M22.4 9.6A9 9 0 1 0 22.4 22.4" fill="none" stroke="#121212" stroke-width="4"/>
+      <path d="M16 16h7.5" stroke="#121212" stroke-width="2.4"/>
+      <circle cx="16" cy="16" r="2.4" fill="#121212"/>
     </g>
-    <text x="114" y="64" fill="#eceef8" font-family="'Bricolage Grotesque', 'Geist', 'Segoe UI', Helvetica, Arial, sans-serif" font-size="56" font-weight="700" letter-spacing="-1.5">tideline</text>
+    <text x="70" y="44" fill="#121212" font-family="'Barlow Condensed', 'Arial Narrow', 'Roboto Condensed', sans-serif" font-size="46" font-weight="700" textLength="72" lengthAdjust="spacingAndGlyphs">CUE</text>
   </g>
+  <text x="1120" y="92" fill="#121212" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="18" font-weight="500" text-anchor="end">FREE · OPEN SOURCE · MIT</text>
+  <rect x="80" y="128" width="1040" height="3" fill="#121212"/>
 
-  <text fill="#eceef8" font-family="'Bricolage Grotesque', 'Geist', 'Segoe UI', Helvetica, Arial, sans-serif" font-size="82" font-weight="700" letter-spacing="-3">
-    <tspan x="92" y="340">Keep every project</tspan>
-    <tspan x="92" y="430">above the tideline.</tspan>
-  </text>
-  <text x="96" y="506" fill="#a3a9c2" font-family="'Geist', 'Segoe UI', Helvetica, Arial, sans-serif" font-size="30">Free, open-source work management for small teams. Every seat, €0.</text>
+  <!-- textLength keeps the condensed proportions even where Barlow Condensed is not installed -->
+  <text x="74" y="240" textLength="830" lengthAdjust="spacingAndGlyphs" fill="#121212" font-family="'Barlow Condensed', 'Arial Narrow', 'Roboto Condensed', sans-serif" font-size="112" font-weight="700">EVERY TASK HAS A</text>
+  <text x="74" y="338" textLength="790" lengthAdjust="spacingAndGlyphs" fill="#121212" font-family="'Barlow Condensed', 'Arial Narrow', 'Roboto Condensed', sans-serif" font-size="112" font-weight="700">DEPARTURE TIME.</text>
 
-  <g fill="none" stroke-linecap="round" stroke-width="3">
-    <path d="M0 580 q30 -9 60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0" stroke="#5b5bf0" stroke-opacity=".7"/>
-    <path d="M0 596 q30 -7 60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0" stroke="#4a7dff" stroke-opacity=".6"/>
-    <path d="M0 612 q30 -5 60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0" stroke="#14c4c4" stroke-opacity=".75"/>
-  </g>
+  <rect x="80" y="380" width="1040" height="290" rx="8" fill="#121212"/>
+  <text x="108" y="426" fill="#f6d11f" font-family="'Barlow Condensed', 'Arial Narrow', 'Roboto Condensed', sans-serif" font-size="30" font-weight="700" textLength="150" lengthAdjust="spacingAndGlyphs">DEPARTURES</text>
+  <text x="276" y="425" fill="#a9a8a0" font-family="'Barlow Condensed', 'Arial Narrow', 'Roboto Condensed', sans-serif" font-size="16" font-weight="600" textLength="230" lengthAdjust="spacingAndGlyphs">DEEP ECHO · TEAM WORKSPACE</text>
+  <rect x="104" y="446" width="992" height="2" fill="#f4f3ee"/>
+    <rect x="108.0" y="470" width="24.0" height="36" rx="2" fill="#242422"/>
+    <text x="120.0" y="495.2" fill="#f4f3ee" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="24" font-weight="500" text-anchor="middle">0</text>
+    <rect x="108.0" y="487.5" width="24.0" height="1" fill="#000" fill-opacity=".6"/>
+    <rect x="135.0" y="470" width="24.0" height="36" rx="2" fill="#242422"/>
+    <text x="147.0" y="495.2" fill="#f4f3ee" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="24" font-weight="500" text-anchor="middle">9</text>
+    <rect x="135.0" y="487.5" width="24.0" height="1" fill="#000" fill-opacity=".6"/>
+    <rect x="162.0" y="470" width="14.4" height="36" rx="2" fill="#242422"/>
+    <text x="169.2" y="495.2" fill="#f4f3ee" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="24" font-weight="500" text-anchor="middle">:</text>
+    <rect x="162.0" y="487.5" width="14.4" height="1" fill="#000" fill-opacity=".6"/>
+    <rect x="179.4" y="470" width="24.0" height="36" rx="2" fill="#242422"/>
+    <text x="191.4" y="495.2" fill="#f4f3ee" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="24" font-weight="500" text-anchor="middle">3</text>
+    <rect x="179.4" y="487.5" width="24.0" height="1" fill="#000" fill-opacity=".6"/>
+    <rect x="206.4" y="470" width="24.0" height="36" rx="2" fill="#242422"/>
+    <text x="218.4" y="495.2" fill="#f4f3ee" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="24" font-weight="500" text-anchor="middle">0</text>
+    <rect x="206.4" y="487.5" width="24.0" height="1" fill="#000" fill-opacity=".6"/>
+  <text x="260" y="495" fill="#f4f3ee" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="21" font-weight="500">ORGANISE THE DATA ROOM</text>
+  <text x="640" y="494" fill="#a9a8a0" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="16">INVESTOR PREP</text>
+  <rect x="820.0" y="470" width="21.0" height="36" rx="2" fill="#242422"/>
+    <text x="830.5" y="495.2" fill="#f6d11f" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="17" font-weight="500" text-anchor="middle">B</text>
+    <rect x="820.0" y="487.5" width="21.0" height="1" fill="#000" fill-opacity=".6"/>
+    <rect x="844.0" y="470" width="21.0" height="36" rx="2" fill="#242422"/>
+    <text x="854.5" y="495.2" fill="#f6d11f" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="17" font-weight="500" text-anchor="middle">O</text>
+    <rect x="844.0" y="487.5" width="21.0" height="1" fill="#000" fill-opacity=".6"/>
+    <rect x="868.0" y="470" width="21.0" height="36" rx="2" fill="#242422"/>
+    <text x="878.5" y="495.2" fill="#f6d11f" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="17" font-weight="500" text-anchor="middle">A</text>
+    <rect x="868.0" y="487.5" width="21.0" height="1" fill="#000" fill-opacity=".6"/>
+    <rect x="892.0" y="470" width="21.0" height="36" rx="2" fill="#242422"/>
+    <text x="902.5" y="495.2" fill="#f6d11f" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="17" font-weight="500" text-anchor="middle">R</text>
+    <rect x="892.0" y="487.5" width="21.0" height="1" fill="#000" fill-opacity=".6"/>
+    <rect x="916.0" y="470" width="21.0" height="36" rx="2" fill="#242422"/>
+    <text x="926.5" y="495.2" fill="#f6d11f" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="17" font-weight="500" text-anchor="middle">D</text>
+    <rect x="916.0" y="487.5" width="21.0" height="1" fill="#000" fill-opacity=".6"/>
+    <rect x="940.0" y="470" width="21.0" height="36" rx="2" fill="#242422"/>
+    <text x="950.5" y="495.2" fill="#f6d11f" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="17" font-weight="500" text-anchor="middle">I</text>
+    <rect x="940.0" y="487.5" width="21.0" height="1" fill="#000" fill-opacity=".6"/>
+    <rect x="964.0" y="470" width="21.0" height="36" rx="2" fill="#242422"/>
+    <text x="974.5" y="495.2" fill="#f6d11f" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="17" font-weight="500" text-anchor="middle">N</text>
+    <rect x="964.0" y="487.5" width="21.0" height="1" fill="#000" fill-opacity=".6"/>
+    <rect x="988.0" y="470" width="21.0" height="36" rx="2" fill="#242422"/>
+    <text x="998.5" y="495.2" fill="#f6d11f" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="17" font-weight="500" text-anchor="middle">G</text>
+    <rect x="988.0" y="487.5" width="21.0" height="1" fill="#000" fill-opacity=".6"/>
+    <rect x="1012.0" y="470" width="21.0" height="36" rx="2" fill="#242422"/>
+    <rect x="1012.0" y="487.5" width="21.0" height="1" fill="#000" fill-opacity=".6"/>
+    <rect x="1036.0" y="470" width="21.0" height="36" rx="2" fill="#242422"/>
+    <rect x="1036.0" y="487.5" width="21.0" height="1" fill="#000" fill-opacity=".6"/>
+    <rect x="1060.0" y="470" width="21.0" height="36" rx="2" fill="#242422"/>
+    <rect x="1060.0" y="487.5" width="21.0" height="1" fill="#000" fill-opacity=".6"/>
+  <rect x="104" y="518" width="992" height="1" fill="#2c2c29"/>
+  <rect x="108.0" y="528" width="24.0" height="36" rx="2" fill="#242422"/>
+    <text x="120.0" y="553.2" fill="#f4f3ee" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="24" font-weight="500" text-anchor="middle">1</text>
+    <rect x="108.0" y="545.5" width="24.0" height="1" fill="#000" fill-opacity=".6"/>
+    <rect x="135.0" y="528" width="24.0" height="36" rx="2" fill="#242422"/>
+    <text x="147.0" y="553.2" fill="#f4f3ee" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="24" font-weight="500" text-anchor="middle">0</text>
+    <rect x="135.0" y="545.5" width="24.0" height="1" fill="#000" fill-opacity=".6"/>
+    <rect x="162.0" y="528" width="14.4" height="36" rx="2" fill="#242422"/>
+    <text x="169.2" y="553.2" fill="#f4f3ee" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="24" font-weight="500" text-anchor="middle">:</text>
+    <rect x="162.0" y="545.5" width="14.4" height="1" fill="#000" fill-opacity=".6"/>
+    <rect x="179.4" y="528" width="24.0" height="36" rx="2" fill="#242422"/>
+    <text x="191.4" y="553.2" fill="#f4f3ee" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="24" font-weight="500" text-anchor="middle">0</text>
+    <rect x="179.4" y="545.5" width="24.0" height="1" fill="#000" fill-opacity=".6"/>
+    <rect x="206.4" y="528" width="24.0" height="36" rx="2" fill="#242422"/>
+    <text x="218.4" y="553.2" fill="#f4f3ee" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="24" font-weight="500" text-anchor="middle">0</text>
+    <rect x="206.4" y="545.5" width="24.0" height="1" fill="#000" fill-opacity=".6"/>
+  <text x="260" y="553" fill="#f4f3ee" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="21" font-weight="500">BOOK REQUIREMENTS CALL</text>
+  <text x="640" y="552" fill="#a9a8a0" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="16">SALES PIPELINE</text>
+  <rect x="820.0" y="528" width="21.0" height="36" rx="2" fill="#d3242b"/>
+    <text x="830.5" y="553.2" fill="#ffffff" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="17" font-weight="500" text-anchor="middle">+</text>
+    <rect x="820.0" y="545.5" width="21.0" height="1" fill="#000" fill-opacity=".6"/>
+    <rect x="844.0" y="528" width="21.0" height="36" rx="2" fill="#d3242b"/>
+    <text x="854.5" y="553.2" fill="#ffffff" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="17" font-weight="500" text-anchor="middle">2</text>
+    <rect x="844.0" y="545.5" width="21.0" height="1" fill="#000" fill-opacity=".6"/>
+    <rect x="868.0" y="528" width="21.0" height="36" rx="2" fill="#d3242b"/>
+    <text x="878.5" y="553.2" fill="#ffffff" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="17" font-weight="500" text-anchor="middle">d</text>
+    <rect x="868.0" y="545.5" width="21.0" height="1" fill="#000" fill-opacity=".6"/>
+    <rect x="892.0" y="528" width="21.0" height="36" rx="2" fill="#d3242b"/>
+    <rect x="892.0" y="545.5" width="21.0" height="1" fill="#000" fill-opacity=".6"/>
+    <rect x="916.0" y="528" width="21.0" height="36" rx="2" fill="#d3242b"/>
+    <text x="926.5" y="553.2" fill="#ffffff" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="17" font-weight="500" text-anchor="middle">D</text>
+    <rect x="916.0" y="545.5" width="21.0" height="1" fill="#000" fill-opacity=".6"/>
+    <rect x="940.0" y="528" width="21.0" height="36" rx="2" fill="#d3242b"/>
+    <text x="950.5" y="553.2" fill="#ffffff" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="17" font-weight="500" text-anchor="middle">E</text>
+    <rect x="940.0" y="545.5" width="21.0" height="1" fill="#000" fill-opacity=".6"/>
+    <rect x="964.0" y="528" width="21.0" height="36" rx="2" fill="#d3242b"/>
+    <text x="974.5" y="553.2" fill="#ffffff" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="17" font-weight="500" text-anchor="middle">L</text>
+    <rect x="964.0" y="545.5" width="21.0" height="1" fill="#000" fill-opacity=".6"/>
+    <rect x="988.0" y="528" width="21.0" height="36" rx="2" fill="#d3242b"/>
+    <text x="998.5" y="553.2" fill="#ffffff" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="17" font-weight="500" text-anchor="middle">A</text>
+    <rect x="988.0" y="545.5" width="21.0" height="1" fill="#000" fill-opacity=".6"/>
+    <rect x="1012.0" y="528" width="21.0" height="36" rx="2" fill="#d3242b"/>
+    <text x="1022.5" y="553.2" fill="#ffffff" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="17" font-weight="500" text-anchor="middle">Y</text>
+    <rect x="1012.0" y="545.5" width="21.0" height="1" fill="#000" fill-opacity=".6"/>
+    <rect x="1036.0" y="528" width="21.0" height="36" rx="2" fill="#d3242b"/>
+    <text x="1046.5" y="553.2" fill="#ffffff" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="17" font-weight="500" text-anchor="middle">E</text>
+    <rect x="1036.0" y="545.5" width="21.0" height="1" fill="#000" fill-opacity=".6"/>
+    <rect x="1060.0" y="528" width="21.0" height="36" rx="2" fill="#d3242b"/>
+    <text x="1070.5" y="553.2" fill="#ffffff" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="17" font-weight="500" text-anchor="middle">D</text>
+    <rect x="1060.0" y="545.5" width="21.0" height="1" fill="#000" fill-opacity=".6"/>
+  <rect x="104" y="576" width="992" height="1" fill="#2c2c29"/>
+  <rect x="108.0" y="586" width="24.0" height="36" rx="2" fill="#242422"/>
+    <text x="120.0" y="611.2" fill="#f4f3ee" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="24" font-weight="500" text-anchor="middle">1</text>
+    <rect x="108.0" y="603.5" width="24.0" height="1" fill="#000" fill-opacity=".6"/>
+    <rect x="135.0" y="586" width="24.0" height="36" rx="2" fill="#242422"/>
+    <text x="147.0" y="611.2" fill="#f4f3ee" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="24" font-weight="500" text-anchor="middle">1</text>
+    <rect x="135.0" y="603.5" width="24.0" height="1" fill="#000" fill-opacity=".6"/>
+    <rect x="162.0" y="586" width="14.4" height="36" rx="2" fill="#242422"/>
+    <text x="169.2" y="611.2" fill="#f4f3ee" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="24" font-weight="500" text-anchor="middle">:</text>
+    <rect x="162.0" y="603.5" width="14.4" height="1" fill="#000" fill-opacity=".6"/>
+    <rect x="179.4" y="586" width="24.0" height="36" rx="2" fill="#242422"/>
+    <text x="191.4" y="611.2" fill="#f4f3ee" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="24" font-weight="500" text-anchor="middle">1</text>
+    <rect x="179.4" y="603.5" width="24.0" height="1" fill="#000" fill-opacity=".6"/>
+    <rect x="206.4" y="586" width="24.0" height="36" rx="2" fill="#242422"/>
+    <text x="218.4" y="611.2" fill="#f4f3ee" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="24" font-weight="500" text-anchor="middle">5</text>
+    <rect x="206.4" y="603.5" width="24.0" height="1" fill="#000" fill-opacity=".6"/>
+  <text x="260" y="611" fill="#f4f3ee" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="21" font-weight="500">FOLLOW-UP EMAILS TO MEDIA</text>
+  <text x="640" y="610" fill="#a9a8a0" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="16">SALES PIPELINE</text>
+  <rect x="820.0" y="586" width="21.0" height="36" rx="2" fill="#242422"/>
+    <text x="830.5" y="611.2" fill="#f4f3ee" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="17" font-weight="500" text-anchor="middle">O</text>
+    <rect x="820.0" y="603.5" width="21.0" height="1" fill="#000" fill-opacity=".6"/>
+    <rect x="844.0" y="586" width="21.0" height="36" rx="2" fill="#242422"/>
+    <text x="854.5" y="611.2" fill="#f4f3ee" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="17" font-weight="500" text-anchor="middle">N</text>
+    <rect x="844.0" y="603.5" width="21.0" height="1" fill="#000" fill-opacity=".6"/>
+    <rect x="868.0" y="586" width="21.0" height="36" rx="2" fill="#242422"/>
+    <rect x="868.0" y="603.5" width="21.0" height="1" fill="#000" fill-opacity=".6"/>
+    <rect x="892.0" y="586" width="21.0" height="36" rx="2" fill="#242422"/>
+    <text x="902.5" y="611.2" fill="#f4f3ee" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="17" font-weight="500" text-anchor="middle">T</text>
+    <rect x="892.0" y="603.5" width="21.0" height="1" fill="#000" fill-opacity=".6"/>
+    <rect x="916.0" y="586" width="21.0" height="36" rx="2" fill="#242422"/>
+    <text x="926.5" y="611.2" fill="#f4f3ee" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="17" font-weight="500" text-anchor="middle">I</text>
+    <rect x="916.0" y="603.5" width="21.0" height="1" fill="#000" fill-opacity=".6"/>
+    <rect x="940.0" y="586" width="21.0" height="36" rx="2" fill="#242422"/>
+    <text x="950.5" y="611.2" fill="#f4f3ee" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="17" font-weight="500" text-anchor="middle">M</text>
+    <rect x="940.0" y="603.5" width="21.0" height="1" fill="#000" fill-opacity=".6"/>
+    <rect x="964.0" y="586" width="21.0" height="36" rx="2" fill="#242422"/>
+    <text x="974.5" y="611.2" fill="#f4f3ee" font-family="'JetBrains Mono', 'Consolas', 'DejaVu Sans Mono', monospace" font-size="17" font-weight="500" text-anchor="middle">E</text>
+    <rect x="964.0" y="603.5" width="21.0" height="1" fill="#000" fill-opacity=".6"/>
+    <rect x="988.0" y="586" width="21.0" height="36" rx="2" fill="#242422"/>
+    <rect x="988.0" y="603.5" width="21.0" height="1" fill="#000" fill-opacity=".6"/>
+    <rect x="1012.0" y="586" width="21.0" height="36" rx="2" fill="#242422"/>
+    <rect x="1012.0" y="603.5" width="21.0" height="1" fill="#000" fill-opacity=".6"/>
+    <rect x="1036.0" y="586" width="21.0" height="36" rx="2" fill="#242422"/>
+    <rect x="1036.0" y="603.5" width="21.0" height="1" fill="#000" fill-opacity=".6"/>
+    <rect x="1060.0" y="586" width="21.0" height="36" rx="2" fill="#242422"/>
+    <rect x="1060.0" y="603.5" width="21.0" height="1" fill="#000" fill-opacity=".6"/>
 </svg>

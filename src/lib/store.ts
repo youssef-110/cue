@@ -1,14 +1,18 @@
 import { create } from 'zustand'
 import { toast } from 'sonner'
 import { emptySnapshot, type Adapter, type Snapshot } from './sync'
-import type { Activity, Board, CellValue, Column, Docs, Group, Item, Kind, Label, User, View, Workspace } from './types'
-import { COLORS, COLOR_LIST, DEMO_USERS, TEMPLATES, priorityLabels, statusLabels, today, uid } from './seed'
+import { format, startOfWeek } from 'date-fns'
+import type { Activity, Automation, AutomationAction, Board, CellValue, Column, Doc, Docs, Group, Item, Kind, Label, User, View, Workspace } from './types'
+import { COLORS, COLOR_LIST, DEMO_USERS, TEMPLATES, dayOffset, priorityLabels, statusLabels, today, uid } from './seed'
 
 export type Route =
   | { page: 'home' }
   | { page: 'my-work' }
   | { page: 'inbox' }
-  | { page: 'board'; boardId: string; viewId?: string }
+  | { page: 'board'; boardId: string; viewId?: string } // viewId 'doc' = the board's doc tab
+  | { page: 'dashboards'; id?: string }
+  | { page: 'archive' }
+  | { page: 'doc'; id: string }
 
 interface State extends Snapshot {
   ready: boolean
@@ -19,6 +23,7 @@ interface State extends Snapshot {
   paletteOpen: boolean
   theme: 'light' | 'dark'
   isAdmin: boolean
+  role: 'admin' | 'member' | 'viewer'
 }
 
 export const useStore = create<State>(() => ({
@@ -30,6 +35,7 @@ export const useStore = create<State>(() => ({
   openItemId: null,
   paletteOpen: false,
   isAdmin: false,
+  role: 'admin',
   theme: (localStorage.getItem('tideline:theme') as 'light' | 'dark') ?? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'),
 }))
 const get = useStore.getState
@@ -39,12 +45,22 @@ const set = useStore.setState
 function parseHash(): Route {
   const [, page, id, viewId] = location.hash.replace(/^#\/?/, '/').split('/')
   if (page === 'board' && id) return { page: 'board', boardId: id, viewId }
+  if (page === 'dashboards') return { page: 'dashboards', id: id || undefined }
+  if (page === 'doc' && id) return { page: 'doc', id }
+  if (page === 'archive') return { page: 'archive' }
   if (page === 'my-work') return { page: 'my-work' }
   if (page === 'inbox') return { page: 'inbox' }
   return { page: 'home' }
 }
 export function navigate(route: Route) {
-  const hash = route.page === 'board' ? `#/board/${route.boardId}${route.viewId ? '/' + route.viewId : ''}` : `#/${route.page}`
+  const hash =
+    route.page === 'board'
+      ? `#/board/${route.boardId}${route.viewId ? '/' + route.viewId : ''}`
+      : route.page === 'dashboards' && route.id
+        ? `#/dashboards/${route.id}`
+        : route.page === 'doc'
+          ? `#/doc/${route.id}`
+          : `#/${route.page}`
   if (location.hash !== hash) history.pushState(null, '', hash)
   set({ route })
 }
@@ -58,11 +74,20 @@ export function setTheme(theme: 'light' | 'dark') {
 }
 
 // ---------- persistence primitives ----------
+// Viewers may still comment (updates, activity, notifications, their profile); the
+// server rules enforce the same, this just keeps the local state from drifting.
+const VIEWER_KINDS: Kind[] = ['update', 'activity', 'notification', 'user']
+const blocked = (kind: Kind) => get().role === 'viewer' && !VIEWER_KINDS.includes(kind) && (toast.error('You have view-only access', { id: 'view-only' }), true)
+export const canEdit = () => get().role !== 'viewer'
+export const useCanEdit = () => useStore((s) => s.role !== 'viewer')
+
 export function put<K extends Kind>(kind: K, doc: Docs[K]) {
+  if (blocked(kind)) return
   set((s) => ({ [kind]: { ...s[kind], [doc.id]: doc } }) as Partial<State>)
   get().adapter?.put(kind, doc)
 }
 export function remove(kind: Kind, id: string) {
+  if (blocked(kind)) return
   set((s) => {
     const next = { ...s[kind] }
     delete next[id]
@@ -107,10 +132,21 @@ export function bootstrap(me: User, withDemo: boolean) {
 
 // ---------- selectors ----------
 export const me = () => get().user[get().meId]
+/** Live (not archived / trashed) items of a board. */
 export const boardItems = (boardId: string) =>
   Object.values(get().item)
-    .filter((i) => i.boardId === boardId)
+    .filter((i) => i.boardId === boardId && isLive(i))
     .sort((a, b) => a.order - b.order)
+type Flags = { archived?: boolean; deletedAt?: number }
+export const isLive = (x?: Flags) => !!x && !x.archived && !x.deletedAt
+/** An item shows in views when it, its parent, its group and its board are all live. */
+export function visibleItem(i: Item, boards: Record<string, Board> = get().board, items: Record<string, Item> = get().item) {
+  const b = boards[i.boardId]
+  if (!isLive(i) || !isLive(b)) return false
+  const g = b.groups.find((x) => x.id === i.groupId)
+  return (!g || isLive(g)) && (!i.parentId || isLive(items[i.parentId]))
+}
+export const liveGroups = (b: Board) => b.groups.filter(isLive)
 export const useBoard = (id: string) => useStore((s) => s.board[id])
 export const labelOf = (col: Column | undefined, id: unknown): Label | undefined => col?.labels?.find((l) => l.id === id)
 export const userName = (id: string) => get().user[id]?.name ?? 'Someone'
@@ -145,16 +181,33 @@ export function updateBoard(id: string, patch: Partial<Board>) {
   const b = get().board[id]
   if (b) put('board', { ...b, ...patch })
 }
+const CLEARED = { archived: undefined, archivedAt: undefined, deletedAt: undefined }
+const leaveBoard = (id: string) => {
+  const r = get().route
+  if (r.page === 'board' && r.boardId === id) navigate({ page: 'home' })
+}
+export function archiveBoard(id: string) {
+  const b = get().board[id]
+  if (!b) return
+  updateBoard(id, { archived: true, archivedAt: Date.now() })
+  leaveBoard(id)
+  toast(`Archived “${b.name}”`, { action: { label: 'Undo', onClick: () => restoreBoard(id) } })
+}
+/** Moves the board to Trash (restorable for 30 days). */
 export function deleteBoard(id: string) {
   const b = get().board[id]
   if (!b) return
-  const items = boardItems(id)
-  items.forEach((i) => remove('item', i.id))
+  updateBoard(id, { deletedAt: Date.now() })
+  leaveBoard(id)
+  toast(`Moved “${b.name}” to trash`, { action: { label: 'Undo', onClick: () => restoreBoard(id) } })
+}
+export const restoreBoard = (id: string) => updateBoard(id, CLEARED)
+export function deleteBoardForever(id: string) {
+  const s = get()
+  Object.values(s.item).filter((i) => i.boardId === id).forEach((i) => remove('item', i.id))
+  Object.values(s.update).filter((u) => u.boardId === id).forEach((u) => remove('update', u.id))
+  Object.values(s.doc).filter((d) => d.boardId === id).forEach((d) => remove('doc', d.id))
   remove('board', id)
-  navigate({ page: 'home' })
-  toast(`Deleted “${b.name}”`, {
-    action: { label: 'Undo', onClick: () => (put('board', b), items.forEach((i) => put('item', i))) },
-  })
 }
 export function duplicateBoard(id: string) {
   const b = get().board[id]
@@ -176,6 +229,8 @@ export function duplicateBoard(id: string) {
 const DEFAULT_TITLES: Record<Column['type'], string> = {
   status: 'Status', priority: 'Priority', people: 'Person', date: 'Date', timeline: 'Timeline', text: 'Text', longtext: 'Long text',
   number: 'Numbers', tags: 'Tags', checkbox: 'Check', link: 'Link', rating: 'Rating', progress: 'Progress',
+  formula: 'Formula', time: 'Time tracking', dependency: 'Dependent on', connect: 'Connected items', mirror: 'Mirror', files: 'Files',
+  email: 'Email', phone: 'Phone', vote: 'Vote', created: 'Created', updated: 'Last updated', itemId: 'Item ID', location: 'Location',
 }
 export function addColumn(boardId: string, type: Column['type']) {
   const b = get().board[boardId]
@@ -183,6 +238,7 @@ export function addColumn(boardId: string, type: Column['type']) {
   if (type === 'status') c.labels = statusLabels()
   if (type === 'priority') c.labels = priorityLabels()
   if (type === 'tags') c.labels = []
+  if (type === 'formula') c.formula = ''
   updateBoard(boardId, { columns: [...b.columns, c] })
   return c
 }
@@ -212,12 +268,72 @@ export function updateGroup(boardId: string, groupId: string, patch: Partial<Gro
   const b = get().board[boardId]
   updateBoard(boardId, { groups: b.groups.map((g) => (g.id === groupId ? { ...g, ...patch } : g)) })
 }
+export function archiveGroup(boardId: string, groupId: string) {
+  updateGroup(boardId, groupId, { archived: true, archivedAt: Date.now() })
+  toast('Group archived', { action: { label: 'Undo', onClick: () => restoreGroup(boardId, groupId) } })
+}
+/** Moves the group (and with it its items) to Trash. */
 export function removeGroup(boardId: string, groupId: string) {
+  updateGroup(boardId, groupId, { deletedAt: Date.now() })
+  toast('Group moved to trash', { action: { label: 'Undo', onClick: () => restoreGroup(boardId, groupId) } })
+}
+export const restoreGroup = (boardId: string, groupId: string) => updateGroup(boardId, groupId, CLEARED)
+export function deleteGroupForever(boardId: string, groupId: string) {
   const b = get().board[boardId]
-  const items = boardItems(boardId).filter((i) => i.groupId === groupId)
+  if (!b) return
+  const ids = Object.values(get().item).filter((i) => i.boardId === boardId && i.groupId === groupId).map((i) => i.id)
+  hardDeleteItems(ids)
   updateBoard(boardId, { groups: b.groups.filter((g) => g.id !== groupId) })
-  items.forEach((i) => remove('item', i.id))
-  toast('Group deleted', { action: { label: 'Undo', onClick: () => (updateBoard(boardId, { groups: b.groups }), items.forEach((i) => put('item', i))) } })
+}
+export function setAllGroupsCollapsed(boardId: string, collapsed: boolean) {
+  const b = get().board[boardId]
+  if (b) updateBoard(boardId, { groups: b.groups.map((g) => ({ ...g, collapsed })) })
+}
+/** Copies a group with its items and subitems, right below the original. */
+export function duplicateGroup(boardId: string, groupId: string) {
+  const b = get().board[boardId]
+  const g = b?.groups.find((x) => x.id === groupId)
+  if (!g) return
+  const copy: Group = { ...g, id: uid('g_'), title: g.title + ' (copy)', collapsed: false }
+  const at = b.groups.indexOf(g) + 1
+  updateBoard(boardId, { groups: [...b.groups.slice(0, at), copy, ...b.groups.slice(at)] })
+  const items = boardItems(boardId).filter((i) => i.groupId === groupId)
+  const ids = new Map(items.map((i) => [i.id, uid('i_')]))
+  items.forEach((i) =>
+    put('item', { ...structuredClone(i), id: ids.get(i.id)!, groupId: copy.id, parentId: i.parentId && ids.get(i.parentId), createdAt: Date.now(), createdBy: get().meId }),
+  )
+  log(boardId, `duplicated group “${g.title}”`)
+}
+/** Moves a group and its items to another board; values move to columns with the same type and title. */
+export function moveGroupToBoard(boardId: string, groupId: string, targetId: string) {
+  const from = get().board[boardId]
+  const to = get().board[targetId]
+  const g = from?.groups.find((x) => x.id === groupId)
+  if (!g || !to || boardId === targetId) return
+  const colMap = new Map<string, string>()
+  for (const c of from.columns) {
+    const t = to.columns.find((x) => x.id === c.id) ?? to.columns.find((x) => x.type === c.type && x.title.toLowerCase() === c.title.toLowerCase())
+    if (t) colMap.set(c.id, t.id)
+  }
+  const mapValue = (c: Column, v: CellValue): CellValue => {
+    const t = to.columns.find((x) => x.id === colMap.get(c.id))
+    if (!t?.labels || !c.labels) return v
+    // labels differ per board: match by name
+    const byName = (id: unknown) => t.labels!.find((l) => l.name === labelOf(c, id)?.name)?.id
+    return Array.isArray(v) ? v.map(byName).filter(Boolean) : (byName(v) ?? null)
+  }
+  updateBoard(targetId, { groups: [...to.groups, { ...g }] })
+  updateBoard(boardId, { groups: from.groups.filter((x) => x.id !== groupId) })
+  const items = Object.values(get().item).filter((i) => i.boardId === boardId && i.groupId === groupId)
+  const ids = new Set(items.map((i) => i.id))
+  for (const i of items) {
+    const values: Record<string, CellValue> = {}
+    for (const c of from.columns) if (colMap.has(c.id) && i.values[c.id] != null) values[colMap.get(c.id)!] = mapValue(c, i.values[c.id])
+    put('item', { ...i, boardId: targetId, values })
+  }
+  Object.values(get().update).filter((u) => ids.has(u.itemId)).forEach((u) => put('update', { ...u, boardId: targetId }))
+  log(targetId, `moved group “${g.title}” here from “${from.name}”`)
+  toast(`Moved “${g.title}” to ${to.name}`)
 }
 
 // ---------- views ----------
@@ -227,8 +343,13 @@ export function addView(boardId: string, type: View['type']) {
   const date = b.columns.find((c) => c.type === 'date')
   const timeline = b.columns.find((c) => c.type === 'timeline')
   const columnId = type === 'calendar' ? date?.id : type === 'timeline' ? (timeline ?? date)?.id : status?.id
-  const names = { table: 'Table', kanban: 'Kanban', timeline: 'Timeline', calendar: 'Calendar', chart: 'Dashboard' }
+  const names = { table: 'Table', kanban: 'Kanban', timeline: 'Timeline', calendar: 'Calendar', chart: 'Dashboard', workload: 'Workload' }
   const v: View = { id: uid('v_'), type, name: names[type], columnId }
+  if (type === 'workload') {
+    v.columnId = b.columns.find((c) => c.type === 'people')?.id
+    v.dateColumnId = (timeline ?? date)?.id
+    v.capacity = 5
+  }
   updateBoard(boardId, { views: [...b.views, v] })
   navigate({ page: 'board', boardId, viewId: v.id })
 }
@@ -238,6 +359,8 @@ export function addItem(boardId: string, groupId: string, name: string, opts: { 
   const siblings = boardItems(boardId).filter((i) => i.groupId === groupId && i.parentId === opts.parentId)
   const order = opts.top ? (siblings[0]?.order ?? 1) - 1 : (siblings.at(-1)?.order ?? 0) + 1
   const item: Item = { id: uid('i_'), boardId, groupId, parentId: opts.parentId, name, values: opts.values ?? {}, order, createdAt: Date.now(), createdBy: get().meId }
+  const b = get().board[boardId]
+  item.subscribers = b ? [...new Set([item.createdBy, ...assigneesOf(b, item)])] : [item.createdBy]
   put('item', item)
   log(boardId, `created “${name}”`, item.id)
   runAutomations(item, { kind: 'item_created' })
@@ -253,9 +376,10 @@ export function setValue(itemId: string, colId: string, value: CellValue) {
   const b = get().board[item.boardId]
   const col = b?.columns.find((c) => c.id === colId)
   const prev = item.values[colId]
-  const next: Item = { ...item, values: { ...item.values, [colId]: value } }
+  const next: Item = { ...item, values: { ...item.values, [colId]: value }, updatedAt: Date.now(), updatedBy: get().meId }
   put('item', next)
   if (!col) return
+  afterValueChange(next, col, prev)
   if (col.type === 'status' || col.type === 'priority') {
     log(b.id, `changed ${col.title} to ${labelOf(col, value)?.name ?? 'empty'} on “${item.name}”`, itemId)
     if (col.type === 'status') runAutomations(next, { kind: 'status_changes', columnId: colId, labelId: value as string })
@@ -271,16 +395,38 @@ export function moveItem(itemId: string, groupId: string, order: number) {
   put('item', { ...i, groupId, order })
   boardItems(i.boardId).filter((s) => s.parentId === itemId && s.groupId !== groupId).forEach((s) => put('item', { ...s, groupId }))
 }
-export function deleteItems(ids: string[]) {
-  const removed: Item[] = []
-  for (const id of ids) {
-    const i = get().item[id]
-    if (!i) continue
-    removed.push(i, ...Object.values(get().item).filter((s) => s.parentId === id))
-  }
-  removed.forEach((i) => remove('item', i.id))
+const withSubitems = (ids: string[]) => {
+  const all = Object.values(get().item)
+  return ids.flatMap((id) => [get().item[id], ...all.filter((s) => s.parentId === id)]).filter(Boolean)
+}
+function flagItems(ids: string[], patch: Partial<Item>, verb: string) {
+  const list = withSubitems(ids)
+  list.forEach((i) => put('item', { ...i, ...patch }))
   if (get().openItemId && ids.includes(get().openItemId!)) openItem(null)
-  if (removed.length) toast(`Deleted ${ids.length} item${ids.length > 1 ? 's' : ''}`, { action: { label: 'Undo', onClick: () => removed.forEach((i) => put('item', i)) } })
+  if (list.length) toast(`${verb} ${ids.length} item${ids.length > 1 ? 's' : ''}`, { action: { label: 'Undo', onClick: () => restoreItems(ids) } })
+}
+export const archiveItems = (ids: string[]) => flagItems(ids, { archived: true, archivedAt: Date.now() }, 'Archived')
+/** Moves items (and their subitems) to Trash. */
+export const deleteItems = (ids: string[]) => flagItems(ids, { deletedAt: Date.now() }, 'Moved to trash:')
+export const restoreItems = (ids: string[]) => withSubitems(ids).forEach((i) => put('item', { ...i, ...CLEARED }))
+function hardDeleteItems(ids: string[]) {
+  const list = withSubitems(ids)
+  const gone = new Set(list.map((i) => i.id))
+  list.forEach((i) => remove('item', i.id))
+  Object.values(get().update).filter((u) => gone.has(u.itemId)).forEach((u) => remove('update', u.id))
+}
+export const deleteItemsForever = hardDeleteItems
+
+// ---------- archive & trash ----------
+const TRASH_DAYS = 30
+/** Hard-deletes everything in Trash, or only what is older than 30 days. */
+export function emptyTrash(onlyExpired = false) {
+  const cutoff = onlyExpired ? Date.now() - TRASH_DAYS * 864e5 : Infinity
+  const old = (x: Flags) => !!x.deletedAt && x.deletedAt < cutoff
+  const s = get()
+  Object.values(s.board).filter(old).forEach((b) => deleteBoardForever(b.id))
+  Object.values(get().board).forEach((b) => b.groups.filter(old).forEach((g) => deleteGroupForever(b.id, g.id)))
+  hardDeleteItems(Object.values(get().item).filter(old).map((i) => i.id))
 }
 export function duplicateItem(id: string) {
   const i = get().item[id]
@@ -294,12 +440,38 @@ export function addUpdate(itemId: string, body: string) {
   if (!item || !body.trim()) return
   put('update', { id: uid('up_'), itemId, boardId: item.boardId, authorId: get().meId, body, createdAt: Date.now(), likes: [] })
   log(item.boardId, `commented on “${item.name}”`, itemId)
-  // notify mentioned teammates (@First) and everyone assigned
+  // notify subscribers, everyone assigned and mentioned teammates (@First); notify() skips the author
   const b = get().board[item.boardId]
-  const assignees = new Set<string>()
-  b.columns.filter((c) => c.type === 'people').forEach((c) => ((item.values[c.id] as string[]) ?? []).forEach((u) => assignees.add(u)))
-  Object.values(get().user).forEach((u) => body.includes('@' + u.name.split(' ')[0]) && assignees.add(u.id))
-  assignees.forEach((u) => notify(u, `wrote an update on “${item.name}”`, b.id, itemId))
+  const to = new Set([...subscribersOf(b, item), ...assigneesOf(b, item)])
+  Object.values(get().user).forEach((u) => body.includes('@' + u.name.split(' ')[0]) && to.add(u.id))
+  to.forEach((u) => notify(u, `wrote an update on “${item.name}”`, b.id, itemId))
+}
+
+// ---------- subscribers ----------
+export const assigneesOf = (b: Board, i: Item) => b.columns.filter((c) => c.type === 'people').flatMap((c) => (i.values[c.id] as string[]) ?? [])
+export const subscribersOf = (b: Board | undefined, i: Item) => i.subscribers ?? [i.createdBy, ...(b ? assigneesOf(b, i) : [])]
+export function toggleSubscribe(itemId: string, userId = get().meId) {
+  const i = get().item[itemId]
+  if (!i) return
+  const cur = subscribersOf(get().board[i.boardId], i)
+  put('item', { ...i, subscribers: cur.includes(userId) ? cur.filter((u) => u !== userId) : [...cur, userId] })
+}
+/** Side effects of a cell change: subscriber notifications and column/person automations. */
+function afterValueChange(item: Item, col: Column, prev: CellValue) {
+  const b = get().board[item.boardId]
+  const value = item.values[col.id]
+  if (col.type === 'status' && value !== prev)
+    subscribersOf(b, item).forEach((u) => notify(u, `changed ${col.title} to ${labelOf(col, value)?.name ?? 'empty'} on “${item.name}”`, b.id, item.id))
+  if (col.type === 'people') {
+    const added = ((value as string[]) ?? []).filter((u) => !((prev as string[]) ?? []).includes(u))
+    if (added.length) {
+      const cur = get().item[item.id]
+      const subs = subscribersOf(b, cur)
+      if (added.some((u) => !subs.includes(u))) put('item', { ...cur, subscribers: [...new Set([...subs, ...added])] })
+      runAutomations(get().item[item.id], { kind: 'person_assigned', columnId: col.id })
+    }
+  }
+  if (get().item[item.id]) runAutomations(get().item[item.id], { kind: 'column_changes', columnId: col.id })
 }
 export function toggleLike(updateId: string) {
   const u = get().update[updateId]
@@ -308,53 +480,97 @@ export function toggleLike(updateId: string) {
 }
 
 // ---------- automations ----------
-type Event = { kind: 'item_created' } | { kind: 'status_changes'; columnId: string; labelId: string } | { kind: 'date_arrives'; columnId: string }
-let depth = 0
+type Event =
+  | { kind: 'item_created' }
+  | { kind: 'status_changes'; columnId: string; labelId: string }
+  | { kind: 'column_changes'; columnId: string }
+  | { kind: 'person_assigned'; columnId: string }
+function matches(t: Automation['trigger'], ev: Event) {
+  if (t.kind !== ev.kind) return false
+  if (t.kind === 'status_changes' && ev.kind === 'status_changes') return t.columnId === ev.columnId && t.labelId === ev.labelId
+  if ((t.kind === 'column_changes' || t.kind === 'person_assigned') && 'columnId' in ev) return !t.columnId || t.columnId === ev.columnId
+  return t.kind === 'item_created'
+}
 function runAutomations(item: Item, ev: Event) {
   const b = get().board[item.boardId]
-  if (!b || depth > 3) return // guard against automation loops
+  if (!b) return
+  for (const a of b.automations) if (a.enabled && matches(a.trigger, ev)) fire(b, a, item.id)
+}
+let depth = 0
+function fire(b: Board, a: Automation, itemId: string) {
+  const cur = get().item[itemId]
+  if (!cur || depth > 3) return // guard against automation loops
   depth++
   try {
-    for (const a of b.automations.filter((x) => x.enabled)) {
-      const t = a.trigger
-      const hit =
-        t.kind === ev.kind &&
-        (t.kind !== 'status_changes' || (ev.kind === 'status_changes' && t.columnId === ev.columnId && t.labelId === ev.labelId)) &&
-        (t.kind !== 'date_arrives' || (ev.kind === 'date_arrives' && t.columnId === ev.columnId))
-      if (!hit) continue
-      const cur = get().item[item.id]
-      if (!cur) continue
-      const act = a.action
-      if (act.kind === 'move_to_group') moveItem(cur.id, act.groupId, Date.now())
-      if (act.kind === 'set_status') setValue(cur.id, act.columnId, act.labelId)
-      if (act.kind === 'assign') setValue(cur.id, act.columnId, [...new Set([...((cur.values[act.columnId] as string[]) ?? []), act.userId])])
-      if (act.kind === 'set_date_today') setValue(cur.id, act.columnId, today())
-      if (act.kind === 'notify') {
-        const targets = act.userId
-          ? [act.userId]
-          : b.columns.filter((c) => c.type === 'people').flatMap((c) => (cur.values[c.id] as string[]) ?? [])
-        targets.forEach((u) => notify(u, `automation: “${cur.name}” needs your attention`, b.id, cur.id))
-      }
-      log(b.id, `automation ran on “${cur.name}”`, cur.id)
-    }
+    applyAction(b, a.action, cur)
+    if (a.action.kind !== 'none') log(b.id, `automation ran on “${cur.name}”`, cur.id)
   } finally {
     depth--
   }
 }
-/** Fire "date arrives" automations once per item/day (checked on load + hourly). */
+function applyAction(b: Board, act: AutomationAction, cur: Item) {
+  switch (act.kind) {
+    case 'move_to_group':
+      return moveItem(cur.id, act.groupId, Date.now())
+    case 'set_status':
+      return setValue(cur.id, act.columnId, act.labelId)
+    case 'assign':
+      return setValue(cur.id, act.columnId, [...new Set([...((cur.values[act.columnId] as string[]) ?? []), act.userId])])
+    case 'set_date_today':
+      return setValue(cur.id, act.columnId, today())
+    case 'clear_column':
+      return setValue(cur.id, act.columnId, null)
+    case 'archive':
+      return archiveItems([cur.id])
+    case 'duplicate':
+      return void duplicateItem(cur.id)
+    case 'create_in_board': {
+      const t = get().board[act.boardId]
+      const g = t && (t.groups.find((x) => x.id === act.groupId && isLive(x)) ?? liveGroups(t)[0])
+      if (g && isLive(t)) addItem(t.id, g.id, cur.name)
+      return
+    }
+    case 'notify': {
+      const targets = act.userId ? [act.userId] : assigneesOf(b, cur)
+      return targets.forEach((u) => notify(u, `automation: “${cur.name}” needs your attention`, b.id, cur.id))
+    }
+  }
+}
+/** Recurring rule: create one item per day / week. The period is stored on the rule (synced), so it never repeats. */
+function runRecurring(b: Board, a: Automation) {
+  if (a.trigger.kind !== 'recurring') return
+  const tr = a.trigger
+  const period = tr.every === 'day' ? today() : format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
+  if (a.lastPeriod === period) return
+  // shortcut: two clients checking in the same instant could both create the item; move to a server job if that ever matters
+  updateBoard(b.id, { automations: get().board[b.id].automations.map((x) => (x.id === a.id ? { ...x, lastPeriod: period } : x)) })
+  const fresh = get().board[b.id]
+  const g = fresh.groups.find((x) => x.id === tr.groupId && isLive(x)) ?? liveGroups(fresh)[0]
+  if (!g) return
+  const item = addItem(b.id, g.id, (tr.name.trim() || 'New item').replaceAll('{date}', today()))
+  fire(fresh, a, item.id)
+}
+const dateValue = (v: unknown) => (typeof v === 'string' ? v : (v as { start?: string } | null)?.start)
+/** Date and recurring automations + trash cleanup (on load + hourly). Date rules fire once per item/day. */
 export function checkDateAutomations() {
+  if (!canEdit()) return // viewers can't write; an editor's session runs these
+  emptyTrash(true)
   const t = today()
   const doneKey = 'tideline:date-auto:' + t
   const done = new Set<string>(JSON.parse(localStorage.getItem(doneKey) ?? '[]'))
   for (const b of Object.values(get().board)) {
+    if (!isLive(b)) continue
     for (const a of b.automations) {
-      if (!a.enabled || a.trigger.kind !== 'date_arrives') continue
-      const colId = a.trigger.columnId
+      if (!a.enabled) continue
+      const tr = a.trigger
+      if (tr.kind === 'recurring') runRecurring(b, a)
+      if (tr.kind !== 'date_arrives' && tr.kind !== 'before_date') continue
+      const target = tr.kind === 'before_date' ? dayOffset(tr.days) : t
       for (const it of boardItems(b.id)) {
         const key = a.id + it.id
-        if (it.values[colId] === t && !done.has(key)) {
+        if (dateValue(it.values[tr.columnId]) === target && visibleItem(it) && !done.has(key)) {
           done.add(key)
-          runAutomations(it, { kind: 'date_arrives', columnId: colId })
+          fire(b, a, it.id)
         }
       }
     }
@@ -378,4 +594,21 @@ export function addTeammate(name: string, email?: string) {
   const u: User = { id: uid('u_'), name, email, color: COLOR_LIST[Object.keys(get().user).length % COLOR_LIST.length] }
   put('user', u)
   return u
+}
+
+// ---------- docs ----------
+export function createDoc(workspaceId: string, boardId?: string, title = 'Untitled doc') {
+  const d: Doc = { id: uid('d_'), workspaceId, boardId, title, body: '', createdBy: get().meId, updatedAt: Date.now() }
+  put('doc', d)
+  return d
+}
+export function updateDoc(id: string, patch: Partial<Doc>) {
+  const d = get().doc[id]
+  if (d) put('doc', { ...d, ...patch, updatedAt: Date.now() })
+}
+export function deleteDoc(id: string) {
+  const d = get().doc[id]
+  if (!d) return
+  remove('doc', id)
+  toast(`Deleted “${d.title}”`, { action: { label: 'Undo', onClick: () => put('doc', d) } })
 }

@@ -4,22 +4,19 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#5b5bf0" />
-    <title>Tideline: free, open-source work management for small teams</title>
+    <meta name="theme-color" content="#f6d11f" />
+    <title>Cue: free, open-source work management from Deep Echo</title>
     <meta
       name="description"
-      content="Boards, timelines, dashboards and no-code automations for small teams. Open source under MIT, realtime sync on a free Firebase project, or zero-setup local mode. Free forever, every seat."
+      content="Cue is the free, open-source (MIT) work manager the Deep Echo team runs on: boards with typed columns, seven views, automations and updates. The team workspace is private; the code is yours to run with your own free Firebase project."
     />
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="Tideline" />
-    <meta property="og:description" content="Free, open-source work management for small teams. Every seat, €0." />
+    <meta property="og:title" content="Cue: every task has a departure time" />
+    <meta property="og:description" content="Free, open-source work management from the Deep Echo team. Private workspace, public code." />
     <meta property="og:image" content="./og.svg" />
     <meta name="twitter:card" content="summary_large_image" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Geist+Mono:wght@400..600&family=Geist:wght@300..700&display=swap" rel="stylesheet" />
     <script>
-      // Apply the saved theme before first paint (same key the app uses) to avoid a light flash.
+      // Apply the saved theme before first paint (same key the app uses) to avoid a flash.
       try {
         var t = localStorage.getItem('tideline:theme')
         if (t === 'dark' || (!t && matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.classList.add('dark')

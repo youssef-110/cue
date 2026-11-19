@@ -27,3 +27,7 @@ dist-ssr
 .rules-build/
 .firebaserc
 *-debug.log
+.impeccable/*.log
+.impeccable/review/
+.impeccable/mocks/
+.impeccable/decision-payload.json

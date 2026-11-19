@@ -46,7 +46,7 @@ export function localAdapter(): Adapter {
       try {
         localStorage.setItem(LS_KEY, JSON.stringify(snap))
       } catch (e) {
-        console.error('Tideline: could not save to local storage', e)
+        console.error('Cue: could not save to local storage', e)
       }
     }, 150)
   }
@@ -113,7 +113,7 @@ if (env.VITE_FIREBASE_EMULATOR && auth && db) {
  */
 export function cloudAdapter(fs: Firestore, uid: string): Adapter {
   const report = (e: unknown) => {
-    console.error('Tideline sync error', e)
+    console.error('Cue sync error', e)
     window.dispatchEvent(new CustomEvent('tideline:sync-error', { detail: (e as Error).message }))
   }
   const queries = (): [Kind, Query][] =>

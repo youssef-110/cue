@@ -3,20 +3,21 @@ import type { Board, Column, Group, Item, Label, User, View } from './types'
 
 export const uid = (p = '') => p + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4)
 
-/** Tideline palette — named so labels stay readable in both themes. */
+/** Cue palette — named so labels stay readable in both themes. */
+/** Cue palette: timetable inks. Yellow is the signal (done), red only marks trouble. */
 export const COLORS = {
-  green: '#00b884',
-  teal: '#14b8c4',
-  sky: '#3b9bff',
-  indigo: '#5b5bf0',
-  violet: '#9a5cf5',
-  pink: '#ec4f9a',
-  red: '#f0475a',
-  orange: '#ff8a3d',
-  amber: '#f7b500',
-  lime: '#8ac926',
-  slate: '#8a93a6',
-  ink: '#3d4458',
+  green: '#1f7a4d',
+  teal: '#0f7c8c',
+  sky: '#2b7bd0',
+  indigo: '#1d4fb8',
+  violet: '#5b3fa8',
+  pink: '#b8326b',
+  red: '#d3242b',
+  orange: '#d9661a',
+  amber: '#f6d11f',
+  lime: '#6e8f1e',
+  slate: '#8a8a84',
+  ink: '#121212',
 } as const
 export const COLOR_LIST: string[] = Object.values(COLORS)
 
@@ -41,15 +42,15 @@ const views = (statusColId?: string, dateColId?: string, timelineColId?: string)
 
 export const statusLabels = () => [
   L('Not started', COLORS.slate),
-  L('Working on it', COLORS.orange),
+  L('Working on it', COLORS.indigo),
   L('Stuck', COLORS.red),
-  L('Done', COLORS.green, true),
+  L('Done', COLORS.amber, true),
 ]
 export const priorityLabels = () => [
   L('Critical', COLORS.ink),
-  L('High', COLORS.violet),
-  L('Medium', COLORS.indigo),
-  L('Low', COLORS.sky),
+  L('High', COLORS.indigo),
+  L('Medium', COLORS.teal),
+  L('Low', COLORS.slate),
 ]
 
 export interface Template {
@@ -113,7 +114,7 @@ export const TEMPLATES: Template[] = [
     icon: '✅',
     description: 'Daily tasks with owners, priority, status and deadlines.',
     build(ws, users) {
-      const status = col('status', 'Status', { labels: [L('Not started', COLORS.slate), L('In progress', COLORS.orange), L('Blocked', COLORS.red), L('Completed', COLORS.green, true)] })
+      const status = col('status', 'Status', { labels: [L('Not started', COLORS.slate), L('In progress', COLORS.indigo), L('Blocked', COLORS.red), L('Completed', COLORS.amber, true)] })
       const prio = col('priority', 'Priority', { labels: [L('P0', COLORS.ink), L('P1', COLORS.violet), L('P2', COLORS.indigo), L('P3', COLORS.sky)] })
       const owner = col('people', 'Owner')
       const collab = col('people', 'Collaborator')
@@ -144,7 +145,7 @@ export const TEMPLATES: Template[] = [
     icon: '💼',
     description: 'Track every deal from discovery call to paying customer.',
     build(ws, users) {
-      const stage = col('status', 'Stage', { labels: [L('Discovery call', COLORS.sky), L('LOI to sign', COLORS.violet), L('Negotiation', COLORS.orange), L('Paying', COLORS.green, true), L('On hold', COLORS.slate)] })
+      const stage = col('status', 'Stage', { labels: [L('Discovery call', COLORS.sky), L('LOI to sign', COLORS.violet), L('Negotiation', COLORS.orange), L('Paying', COLORS.amber, true), L('On hold', COLORS.slate)] })
       const owner = col('people', 'Owner')
       const segment = col('tags', 'Segment', { labels: [L('Broadcaster', COLORS.indigo), L('Streaming', COLORS.pink), L('Localisation', COLORS.teal), L('Software', COLORS.amber), L('Integrator', COLORS.lime)] })
       const problem = col('text', 'Their problem', { width: 220 })
@@ -201,7 +202,7 @@ export const TEMPLATES: Template[] = [
     icon: '📣',
     description: 'Plan posts across channels and ship on schedule.',
     build(ws, users) {
-      const status = col('status', 'Status', { labels: [L('Idea', COLORS.slate), L('Drafting', COLORS.amber), L('In review', COLORS.violet), L('Published', COLORS.green, true)] })
+      const status = col('status', 'Status', { labels: [L('Idea', COLORS.slate), L('Drafting', COLORS.orange), L('In review', COLORS.violet), L('Published', COLORS.amber, true)] })
       const channel = col('tags', 'Channel', { labels: [L('LinkedIn', COLORS.sky), L('Blog', COLORS.indigo), L('Newsletter', COLORS.pink), L('Video', COLORS.red)] })
       const owner = col('people', 'Owner')
       const date = col('date', 'Publish date')
@@ -240,3 +241,13 @@ export const DEMO_USERS: Omit<User, 'id'>[] = [
   { name: 'Leo Martins', color: COLORS.pink, title: 'Co-founder' },
   { name: 'Mia Okafor', color: COLORS.teal, title: 'Engineer' },
 ]
+
+/** Text colour with the higher contrast on a label fill (crossover at luminance ~0.19). */
+export function inkOn(hex: string) {
+  const n = parseInt(hex.replace('#', '').slice(0, 6), 16)
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => {
+    const v = c / 255
+    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4
+  })
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.19 ? '#121212' : '#ffffff'
+}

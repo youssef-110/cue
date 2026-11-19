@@ -1,13 +1,17 @@
 import { useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { formatDistanceToNow } from 'date-fns'
-import { Copy, Heart, MessageCircle, MoreHorizontal, Send, Trash2, X, ListTree, Activity as ActivityIcon, Plus } from 'lucide-react'
-import { addItem, addUpdate, deleteItems, duplicateItem, openItem, remove, renameItem, toggleLike, useStore } from '../lib/store'
-import { Avatar, EditableText, MenuItem, Popover, cx } from './ui'
+import { Copy, Heart, MessageCircle, MoreHorizontal, Send, Trash2, X, Plus, Archive, Bell, BellOff, RotateCcw } from 'lucide-react'
+import { addItem, addUpdate, archiveItems, deleteItems, duplicateItem, isLive, openItem, remove, renameItem, restoreItems, subscribersOf, toggleLike, toggleSubscribe, useCanEdit, useStore } from '../lib/store'
+import { Avatar, Button, EditableText, MenuItem, Popover, cx } from './ui'
 import { Cell } from './cells'
 import { COLUMN_TYPES } from './columnTypes'
 
 type Tab = 'updates' | 'subitems' | 'activity'
+
+const EASE = [0.2, 0.7, 0.2, 1] as const
+// controls on the panel's yellow band
+const BAND_BTN = 'flex h-8 items-center gap-1.5 rounded-md px-2 text-[13px] text-on-signal transition-colors hover:bg-on-signal/10 [&>svg]:size-4'
 
 export function ItemPanel() {
   const id = useStore((s) => s.openItemId)
@@ -16,14 +20,22 @@ export function ItemPanel() {
     <AnimatePresence>
       {item && (
         <>
-          <motion.div key="scrim" className="fixed inset-0 z-30 bg-[#0b0d1a]/20" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => openItem(null)} />
+          <motion.div
+            key="scrim"
+            className="fixed inset-0 z-30 bg-ink/25"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.14 }}
+            onClick={() => openItem(null)}
+          />
           <motion.aside
             key="panel"
-            initial={{ x: 40, opacity: 0 }}
+            initial={{ x: 4, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
-            exit={{ x: 40, opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 420, damping: 38 }}
-            className="fixed inset-y-0 right-0 z-40 flex w-full max-w-[620px] flex-col border-l border-line bg-panel shadow-pop"
+            exit={{ x: 4, opacity: 0, transition: { duration: 0.1 } }}
+            transition={{ duration: 0.16, ease: EASE }}
+            className="fixed inset-y-0 right-0 z-40 flex w-full max-w-[640px] flex-col border-l border-line-strong bg-panel shadow-pop"
             aria-label="Item details"
           >
             <PanelBody itemId={item.id} />
@@ -46,11 +58,14 @@ function PanelBody({ itemId }: { itemId: string }) {
   const [draft, setDraft] = useState('')
   const menuRef = useRef<HTMLButtonElement>(null)
   const [menu, setMenu] = useState(false)
+  const editable = useCanEdit()
   const updates = useMemo(() => Object.values(updatesMap).filter((u) => u.itemId === itemId).sort((a, b) => b.createdAt - a.createdAt), [updatesMap, itemId])
   const activity = useMemo(() => Object.values(activityMap).filter((a) => a.itemId === itemId).sort((a, b) => b.at - a.at), [activityMap, itemId])
-  const subs = useMemo(() => Object.values(itemsMap).filter((i) => i.parentId === itemId).sort((a, b) => a.order - b.order), [itemsMap, itemId])
+  const subs = useMemo(() => Object.values(itemsMap).filter((i) => i.parentId === itemId && isLive(i)).sort((a, b) => a.order - b.order), [itemsMap, itemId])
   if (!item || !board) return null
   const group = board.groups.find((g) => g.id === item.groupId)
+  const subscribed = subscribersOf(board, item).includes(meId)
+  const gone = item.deletedAt ? 'in the trash' : item.archived ? 'archived' : ''
   const parent = item.parentId ? itemsMap[item.parentId] : undefined
   const mention = draft.match(/@(\w*)$/)?.[1]
   const mentionHits = mention !== undefined ? Object.values(users).filter((u) => u.name.toLowerCase().startsWith(mention.toLowerCase())).slice(0, 5) : []
@@ -61,188 +76,250 @@ function PanelBody({ itemId }: { itemId: string }) {
     setDraft('')
   }
 
+  const tabs = [
+    ['updates', 'Updates', updates.length],
+    ...(item.parentId ? [] : [['subitems', 'Subitems', subs.length]]),
+    ['activity', 'Activity', activity.length],
+  ] as [Tab, string, number][]
+
   return (
     <>
-      <div className="border-b border-line px-6 pb-0 pt-5">
-        <div className="mb-2 flex items-center gap-2 text-[12px] text-faint">
-          <span>{board.icon}</span>
-          <span>{board.name}</span>
-          <span>/</span>
-          <span className="flex items-center gap-1.5">
-            <span className="size-2 rounded-full" style={{ background: group?.color }} />
-            {group?.title}
-          </span>
-          {parent && (
-            <>
-              <span>/</span>
-              <button className="hover:text-accent" onClick={() => openItem(parent.id)}>{parent.name}</button>
-            </>
-          )}
-          <div className="ml-auto flex gap-1">
-            <button ref={menuRef} onClick={() => setMenu(true)} aria-label="Item options" className="grid size-8 place-items-center rounded-lg text-muted hover:bg-hover">
-              <MoreHorizontal className="size-4" />
+      {/* yellow band: where the item sits, and its name */}
+      <div className="bg-signal px-6 pb-5 pt-3 text-on-signal">
+        <div className="flex items-center gap-2">
+          <nav aria-label="Item location" className="caps flex min-w-0 flex-1 items-center gap-2 text-[12.5px] font-semibold tracking-[0.12em]">
+            <span className="truncate text-on-signal/80">{board.name}</span>
+            <span aria-hidden className="text-on-signal/60">/</span>
+            <span className="flex min-w-0 items-center gap-1.5">
+              <span className="size-2 shrink-0 ring-1 ring-on-signal/30" style={{ background: group?.color }} />
+              <span className="truncate">{group?.title}</span>
+            </span>
+            {parent && (
+              <>
+                <span aria-hidden className="text-on-signal/60">/</span>
+                <button className="truncate hover:underline" onClick={() => openItem(parent.id)}>
+                  {parent.name}
+                </button>
+              </>
+            )}
+          </nav>
+          <div className="flex shrink-0 items-center gap-0.5">
+            {editable && (
+              <button
+                onClick={() => toggleSubscribe(item.id)}
+                aria-pressed={subscribed}
+                title={subscribed ? 'You get notified about updates and status changes' : 'Get notified about updates and status changes'}
+                className={BAND_BTN}
+              >
+                {subscribed ? <Bell className="fill-on-signal" /> : <BellOff />}
+                {subscribed ? 'Subscribed' : 'Subscribe'}
+              </button>
+            )}
+            <button ref={menuRef} hidden={!editable} onClick={() => setMenu(true)} aria-label="Item options" title="Item options" className={cx(BAND_BTN, 'w-8 justify-center px-0')}>
+              <MoreHorizontal />
             </button>
-            <button onClick={() => openItem(null)} aria-label="Close" title="Close (Esc)" className="grid size-8 place-items-center rounded-lg text-muted hover:bg-hover">
-              <X className="size-4" />
+            <button onClick={() => openItem(null)} aria-label="Close" title="Close (Esc)" className={cx(BAND_BTN, 'w-8 justify-center px-0')}>
+              <X />
             </button>
           </div>
           <Popover anchor={menuRef.current} open={menu} onClose={() => setMenu(false)} width={190} align="end">
             <MenuItem icon={<Copy />} onClick={() => { const c = duplicateItem(item.id); setMenu(false); if (c) openItem(c.id) }}>Duplicate</MenuItem>
+            <MenuItem icon={<Archive />} onClick={() => (setMenu(false), archiveItems([item.id]))}>Archive item</MenuItem>
             <MenuItem icon={<Trash2 />} danger onClick={() => (setMenu(false), deleteItems([item.id]))}>Delete item</MenuItem>
           </Popover>
         </div>
-        <EditableText value={item.name} onCommit={(n) => renameItem(item.id, n)} className="font-display text-[24px] font-semibold leading-tight tracking-tight" />
-
-        {/* fields */}
-        <div className="mt-4 grid grid-cols-[120px_1fr] gap-x-3 gap-y-1.5 pb-4 text-[13px]">
-          {board.columns.map((c) => {
-            const T = COLUMN_TYPES.find((t) => t.type === c.type)
-            return (
-              <div key={c.id} className="contents">
-                <span className="flex h-9 items-center gap-2 text-muted">
-                  {T && <T.icon className="size-3.5 shrink-0" />}
-                  <span className="truncate">{c.title}</span>
-                </span>
-                <div className="h-9 overflow-hidden rounded-lg border border-line">
-                  <Cell board={board} col={c} item={item} groupColor={group?.color ?? '#5b5bf0'} />
-                </div>
-              </div>
-            )
-          })}
+        <div className="mt-3">
+          {editable ? (
+            <EditableText value={item.name} onCommit={(n) => renameItem(item.id, n)} className="caps block text-[32px] font-bold leading-[1.05] tracking-[0.02em]" />
+          ) : (
+            <h2 className="caps text-[32px] font-bold leading-[1.05] tracking-[0.02em]">{item.name}</h2>
+          )}
         </div>
-
-        <nav className="flex gap-1">
-          {(
-            [
-              ['updates', 'Updates', MessageCircle, updates.length],
-              ...(item.parentId ? [] : [['subitems', 'Subitems', ListTree, subs.length]]),
-              ['activity', 'Activity', ActivityIcon, activity.length],
-            ] as [Tab, string, typeof MessageCircle, number][]
-          ).map(([k, label, I, n]) => (
-            <button key={k} onClick={() => setTab(k)} className={cx('relative flex h-10 items-center gap-2 px-3 text-[13.5px]', tab === k ? 'font-medium text-fg' : 'text-muted hover:text-fg')}>
-              <I className="size-4" /> {label}
-              {n > 0 && <span className="rounded-full bg-panel-2 px-1.5 text-[11px] text-muted">{n}</span>}
-              {tab === k && <motion.span layoutId="panel-tab" className="absolute inset-x-2 -bottom-px h-[2px] rounded-full bg-accent" />}
-            </button>
-          ))}
-        </nav>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto bg-bg/60 px-6 py-5">
-        {tab === 'updates' && (
-          <>
-            <div className="relative rounded-2xl border border-line bg-panel p-3 shadow-card focus-within:border-accent focus-within:ring-4 focus-within:ring-accent/10">
-              <textarea
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) send()
-                }}
-                rows={3}
-                placeholder="Write an update… use @ to mention a teammate"
-                aria-label="Write an update"
-                className="w-full resize-none bg-transparent text-[14px] outline-none placeholder:text-faint"
-              />
-              {mentionHits.length > 0 && (
-                <div className="absolute left-3 top-full z-10 mt-1 w-56 rounded-xl border border-line bg-panel p-1 shadow-pop">
-                  {mentionHits.map((u) => (
-                    <button key={u.id} onClick={() => setDraft(draft.replace(/@\w*$/, '@' + u.name.split(' ')[0] + ' '))} className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-[13px] hover:bg-hover">
-                      <Avatar user={u} size={20} /> {u.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] text-faint">Ctrl + Enter to post</span>
-                <button onClick={send} disabled={!draft.trim()} className="flex h-8 items-center gap-1.5 rounded-lg bg-accent px-3 text-[13px] font-medium text-white transition hover:brightness-110 disabled:opacity-40">
-                  <Send className="size-3.5" /> Update
-                </button>
-              </div>
-            </div>
-            <div className="mt-5 space-y-3">
-              <AnimatePresence initial={false}>
-                {updates.map((u) => (
-                  <motion.article key={u.id} layout initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} className="rounded-2xl border border-line bg-panel p-4 shadow-card">
-                    <header className="mb-2 flex items-center gap-2.5">
-                      <Avatar user={users[u.authorId]} size={30} />
-                      <div className="leading-tight">
-                        <div className="text-[13.5px] font-medium">{users[u.authorId]?.name ?? 'Someone'}</div>
-                        <div className="text-[11.5px] text-faint">{formatDistanceToNow(u.createdAt, { addSuffix: true })}</div>
-                      </div>
-                      {u.authorId === meId && (
-                        <button onClick={() => remove('update', u.id)} aria-label="Delete update" className="ml-auto grid size-7 place-items-center rounded-md text-faint hover:bg-hover hover:text-red-500">
-                          <Trash2 className="size-3.5" />
-                        </button>
-                      )}
-                    </header>
-                    <p className="whitespace-pre-wrap text-[14px] leading-relaxed">
-                      {u.body.split(/(@\w+)/g).map((part, i) =>
-                        part.startsWith('@') ? (
-                          <span key={i} className="rounded bg-accent-soft px-1 font-medium text-accent">{part}</span>
-                        ) : (
-                          part
-                        ),
-                      )}
-                    </p>
-                    <button onClick={() => toggleLike(u.id)} className={cx('mt-3 flex items-center gap-1.5 rounded-lg px-2 py-1 text-[12.5px] transition', u.likes.includes(meId) ? 'text-pink-500' : 'text-muted hover:bg-hover')}>
-                      <motion.span animate={{ scale: u.likes.includes(meId) ? [1, 1.4, 1] : 1 }}>
-                        <Heart className={cx('size-4', u.likes.includes(meId) && 'fill-current')} />
-                      </motion.span>
-                      {u.likes.length > 0 ? u.likes.length : 'Like'}
-                    </button>
-                  </motion.article>
-                ))}
-              </AnimatePresence>
-              {!updates.length && (
-                <div className="py-10 text-center">
-                  <MessageCircle className="mx-auto mb-3 size-10 text-line-strong" />
-                  <p className="font-medium">No updates yet</p>
-                  <p className="text-[13px] text-muted">Share progress, ask questions, mention teammates.</p>
-                </div>
-              )}
-            </div>
-          </>
-        )}
-
-        {tab === 'subitems' && (
-          <div className="space-y-1.5">
-            {subs.map((s) => (
-              <div key={s.id} className="flex items-center gap-2 rounded-xl border border-line bg-panel px-3 py-2 text-[13.5px]">
-                <span className="size-1.5 rounded-full bg-faint" />
-                <EditableText value={s.name} onCommit={(n) => renameItem(s.id, n)} className="flex-1" />
-                <button onClick={() => openItem(s.id)} className="text-[12px] text-accent hover:underline">Open</button>
-                <button onClick={() => deleteItems([s.id])} aria-label="Delete subitem" className="text-faint hover:text-red-500">
-                  <X className="size-3.5" />
-                </button>
-              </div>
-            ))}
-            <form
-              onSubmit={(e) => {
-                e.preventDefault()
-                const f = e.currentTarget.elements.namedItem('sub') as HTMLInputElement
-                if (f.value.trim()) addItem(board.id, item.groupId, f.value.trim(), { parentId: item.id })
-                f.value = ''
-              }}
-              className="flex items-center gap-2 rounded-xl border border-dashed border-line-strong px-3 py-1.5"
-            >
-              <Plus className="size-4 text-faint" />
-              <input name="sub" placeholder="Add a subitem" aria-label="Add a subitem" className="h-7 flex-1 bg-transparent text-[13.5px] outline-none" />
-            </form>
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {gone && (
+          <div className="flex items-center gap-2 border-b border-line bg-panel-2 px-6 py-2.5 text-[13.5px] text-muted">
+            This item is {gone}.
+            {editable && (
+              <button onClick={() => restoreItems([item.id])} className="ml-auto flex items-center gap-1 font-medium text-accent hover:underline">
+                <RotateCcw className="size-3.5" /> Restore
+              </button>
+            )}
           </div>
         )}
 
-        {tab === 'activity' && (
-          <ol className="relative space-y-4 border-l border-line pl-5">
-            {activity.map((a) => (
-              <li key={a.id} className="relative text-[13px]">
-                <span className="absolute -left-[27px] top-0.5 grid size-3.5 place-items-center rounded-full border-2 border-panel bg-accent" />
-                <span className="font-medium">{users[a.actorId]?.name ?? 'Someone'}</span> <span className="text-muted">{a.text}</span>
-                <div className="text-[11.5px] text-faint">{formatDistanceToNow(a.at, { addSuffix: true })}</div>
-              </li>
-            ))}
-            {!activity.length && <li className="text-[13px] text-muted">Nothing here yet.</li>}
-          </ol>
-        )}
+        {/* fields table */}
+        <div className="px-6 pt-5">
+          <div className="border-t-2 border-fg">
+            {board.columns.map((c) => {
+              const T = COLUMN_TYPES.find((t) => t.type === c.type)
+              return (
+                <div key={c.id} className="grid grid-cols-[150px_1fr] border-b border-line">
+                  <span className="caps flex h-10 items-center gap-2 pr-3 text-[12.5px] font-semibold tracking-[0.1em] text-muted">
+                    {T && <T.icon className="size-3.5 shrink-0" />}
+                    <span className="truncate">{c.title}</span>
+                  </span>
+                  <div className="h-10 overflow-hidden border-l border-line">
+                    <div inert={!editable} className="h-full">
+                      <Cell board={board} col={c} item={item} groupColor={group?.color ?? '#121212'} />
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        <nav className="sticky top-0 z-[1] mt-6 flex gap-1 border-b border-line bg-panel px-6" aria-label="Item sections">
+          {tabs.map(([k, label, n]) => (
+            <button
+              key={k}
+              onClick={() => setTab(k)}
+              aria-current={tab === k ? 'true' : undefined}
+              className={cx(
+                'caps relative -mb-px flex h-10 items-center gap-2 border-b-2 px-2.5 text-[14px] font-semibold tracking-[0.1em] transition-colors',
+                tab === k ? 'border-fg text-fg' : 'border-transparent text-muted hover:text-fg',
+              )}
+            >
+              {label}
+              {n > 0 && <span className="font-mono text-[11.5px] font-medium tracking-normal text-faint">{n}</span>}
+            </button>
+          ))}
+        </nav>
+
+        <div className="px-6 py-5">
+          {tab === 'updates' && (
+            <>
+              <div className="relative rounded-md border border-line-strong bg-panel p-3 transition-colors focus-within:border-accent">
+                <textarea
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) send()
+                  }}
+                  rows={3}
+                  placeholder="Write an update… use @ to mention a teammate"
+                  aria-label="Write an update"
+                  className="w-full resize-none bg-transparent text-[14px] leading-relaxed outline-none placeholder:text-faint"
+                />
+                {mentionHits.length > 0 && (
+                  <div className="absolute left-3 top-full z-10 mt-1 w-56 rounded-lg border border-line-strong bg-panel p-1 shadow-pop">
+                    {mentionHits.map((u) => (
+                      <button key={u.id} onClick={() => setDraft(draft.replace(/@\w*$/, '@' + u.name.split(' ')[0] + ' '))} className="flex h-8 w-full items-center gap-2 rounded-sm px-2 text-[13.5px] hover:bg-hover">
+                        <Avatar user={u} size={20} /> {u.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div className="flex items-center justify-between pt-1">
+                  <span className="font-mono text-[11px] text-faint">Ctrl + Enter to post</span>
+                  <Button variant="primary" onClick={send} disabled={!draft.trim()}>
+                    <Send className="!size-3.5" /> Post update
+                  </Button>
+                </div>
+              </div>
+              <div className="mt-4 divide-y divide-line">
+                <AnimatePresence initial={false}>
+                  {updates.map((u) => (
+                    <motion.article
+                      key={u.id}
+                      layout="position"
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.14, ease: EASE }}
+                      className="py-4"
+                    >
+                      <header className="mb-1.5 flex items-center gap-2.5">
+                        <Avatar user={users[u.authorId]} size={26} />
+                        <span className="text-[14px] font-semibold">{users[u.authorId]?.name ?? 'Someone'}</span>
+                        <span className="font-mono text-[11.5px] text-faint">{formatDistanceToNow(u.createdAt, { addSuffix: true })}</span>
+                        {u.authorId === meId && (
+                          <button onClick={() => remove('update', u.id)} aria-label="Delete update" title="Delete update" className="ml-auto grid size-7 place-items-center rounded-sm text-faint hover:bg-alert-soft hover:text-alert">
+                            <Trash2 className="size-3.5" />
+                          </button>
+                        )}
+                      </header>
+                      <p className="whitespace-pre-wrap pl-[36px] text-[14px] leading-relaxed">
+                        {u.body.split(/(@\w+)/g).map((part, i) =>
+                          part.startsWith('@') ? (
+                            <span key={i} className="rounded-sm bg-accent-soft px-1 font-medium text-accent">
+                              {part}
+                            </span>
+                          ) : (
+                            part
+                          ),
+                        )}
+                      </p>
+                      <div className="pl-[36px]">
+                        <button
+                          onClick={() => toggleLike(u.id)}
+                          aria-pressed={u.likes.includes(meId)}
+                          className={cx('-ml-2 mt-2 flex items-center gap-1.5 rounded-sm px-2 py-1 text-[12.5px] transition-colors hover:bg-hover', u.likes.includes(meId) ? 'text-fg' : 'text-muted')}
+                        >
+                          <Heart className={cx('size-3.5', u.likes.includes(meId) && 'fill-current')} />
+                          {u.likes.length > 0 ? <span className="font-mono">{u.likes.length}</span> : 'Like'}
+                        </button>
+                      </div>
+                    </motion.article>
+                  ))}
+                </AnimatePresence>
+                {!updates.length && (
+                  <div className="py-10 text-center">
+                    <MessageCircle className="mx-auto mb-3 size-8 text-line-strong" />
+                    <p className="caps text-[16px] font-bold tracking-[0.08em]">No updates yet</p>
+                    <p className="mt-1 text-[13.5px] text-muted">Share progress, ask a question, or mention a teammate with @.</p>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {tab === 'subitems' && (
+            <div className="border-t border-line">
+              {subs.map((s) => (
+                <div key={s.id} className="group flex h-10 items-center gap-2.5 border-b border-line text-[14px]">
+                  <span className="size-[7px] shrink-0 border border-muted" />
+                  {editable ? <EditableText value={s.name} onCommit={(n) => renameItem(s.id, n)} className="flex-1" /> : <span className="flex-1 truncate">{s.name}</span>}
+                  <button onClick={() => openItem(s.id)} className="text-[13px] text-accent hover:underline">
+                    Open
+                  </button>
+                  <button hidden={!editable} onClick={() => deleteItems([s.id])} aria-label="Delete subitem" title="Delete subitem" className="grid size-7 place-items-center rounded-sm text-faint hover:bg-alert-soft hover:text-alert">
+                    <X className="size-3.5" />
+                  </button>
+                </div>
+              ))}
+              <form
+                hidden={!editable}
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  const f = e.currentTarget.elements.namedItem('sub') as HTMLInputElement
+                  if (f.value.trim()) addItem(board.id, item.groupId, f.value.trim(), { parentId: item.id })
+                  f.value = ''
+                }}
+                className="flex h-10 items-center gap-2.5 border-b border-line text-faint"
+              >
+                <Plus className="size-3.5" />
+                <input name="sub" placeholder="Add a subitem" aria-label="Add a subitem" className="h-8 flex-1 bg-transparent text-[14px] text-fg outline-none placeholder:text-faint" />
+              </form>
+            </div>
+          )}
+
+          {tab === 'activity' && (
+            <ol className="divide-y divide-line border-t border-line">
+              {activity.map((a) => (
+                <li key={a.id} className="grid grid-cols-[1fr_auto] items-baseline gap-3 py-2.5 text-[13.5px]">
+                  <span>
+                    <span className="font-medium">{users[a.actorId]?.name ?? 'Someone'}</span> <span className="text-muted">{a.text}</span>
+                  </span>
+                  <span className="font-mono text-[11.5px] text-faint">{formatDistanceToNow(a.at, { addSuffix: true })}</span>
+                </li>
+              ))}
+              {!activity.length && <li className="py-3 text-[13.5px] text-muted">No changes recorded for this item yet.</li>}
+            </ol>
+          )}
+        </div>
       </div>
     </>
   )

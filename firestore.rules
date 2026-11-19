@@ -1,32 +1,33 @@
 rules_version = '2';
 
-// Tideline access rules.
-// Only verified emails listed in /members can read or write team data.
-// Admins manage /members from the app's Team screen.
+// Cue access rules.
+// Accounts are created by an admin (server side). Only signed-in users with a
+// /members/{uid} row can read anything; viewers read, members and admins edit.
+// Nobody can change /members from the browser: the admin server does that.
 service cloud.firestore {
   match /databases/{database}/documents {
 
     function signedIn() {
-      return request.auth != null && request.auth.token.email_verified == true;
-    }
-    function me() {
-      return request.auth.token.email.lower();
-    }
-    function memberDoc() {
-      return /databases/$(database)/documents/members/$(me());
-    }
-    function isMember() {
-      return signedIn() && exists(memberDoc());
-    }
-    function isAdmin() {
-      return isMember() && get(memberDoc()).data.role == 'admin';
+      return request.auth != null;
     }
     function uid() {
       return request.auth.uid;
     }
-    // The only email allowed to claim a fresh workspace. Filled in at deploy
+    function memberDoc() {
+      return /databases/$(database)/documents/members/$(uid());
+    }
+    function isMember() {
+      return signedIn() && exists(memberDoc());
+    }
+    function role() {
+      return get(memberDoc()).data.role;
+    }
+    function canEdit() {
+      return isMember() && role() in ['admin', 'member'];
+    }
+    // The only login allowed to claim a fresh workspace. Filled in at deploy
     // time by scripts/build-rules.mjs, so it never lives in the repository.
-    function ownerEmail() {
+    function ownerLogin() {
       return '__OWNER_EMAIL__';
     }
     // ownership fields must never be rewritten
@@ -45,52 +46,59 @@ service cloud.firestore {
     // existence flag only (no personal data): "has this workspace been claimed?"
     match /meta/setup {
       allow read: if signedIn();
-      // created once, in the same batch as the owner's admin member row
-      allow create: if signedIn() && me() == ownerEmail()
+      allow create: if signedIn() && request.auth.token.email == ownerLogin()
         && request.resource.data.keys().hasOnly(['at'])
         && getAfter(memberDoc()).data.role == 'admin';
     }
 
-    match /members/{email} {
-      allow read: if isMember() || (signedIn() && email == me());
-      allow create: if (isAdmin() && validMember(email))
-        || (signedIn() && email == me() && me() == ownerEmail() && request.resource.data.role == 'admin'
-            && !exists(/databases/$(database)/documents/meta/setup)
-            && existsAfter(/databases/$(database)/documents/meta/setup));
-      allow update: if isAdmin() && validMember(email) && email != me();
-      allow delete: if isAdmin() && email != me();
-
-      function validMember(e) {
-        return request.resource.data.email == e
-          && e == e.lower()
-          && request.resource.data.role in ['admin', 'member'];
-      }
+    match /members/{memberId} {
+      allow read: if isMember() || (signedIn() && memberId == uid());
+      // the owner's one-time claim of a fresh workspace; everything else is server-side
+      allow create: if signedIn() && memberId == uid()
+        && request.auth.token.email == ownerLogin()
+        && request.resource.data.role == 'admin'
+        && !exists(/databases/$(database)/documents/meta/setup)
+        && existsAfter(/databases/$(database)/documents/meta/setup);
+      // a member may only clear their own "must change password" flag
+      allow update: if signedIn() && memberId == uid()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['mustChangePassword'])
+        && request.resource.data.mustChangePassword == false;
     }
 
-    // ---------- shared team work: any member ----------
+    // ---------- shared team work ----------
     match /{kind}/{id} {
-      allow read: if isMember() && kind in ['workspace', 'board', 'item', 'update', 'user', 'activity'];
+      allow read: if isMember() && kind in ['workspace', 'board', 'item', 'update', 'user', 'activity', 'doc', 'dashboard'];
     }
     match /workspace/{id} {
-      allow create: if isMember() && idMatches(id);
-      allow update: if isMember() && keepsOwnership();
-      allow delete: if isMember();
+      allow create: if canEdit() && idMatches(id);
+      allow update: if canEdit() && keepsOwnership();
+      allow delete: if canEdit();
     }
     match /board/{id} {
-      allow create: if isMember() && idMatches(id);
-      allow update: if isMember() && keepsOwnership();
-      allow delete: if isMember();
+      allow create: if canEdit() && idMatches(id);
+      allow update: if canEdit() && keepsOwnership();
+      allow delete: if canEdit();
     }
     match /item/{id} {
-      allow create: if isMember() && idMatches(id);
-      allow update: if isMember() && keepsOwnership();
-      allow delete: if isMember();
+      allow create: if canEdit() && idMatches(id);
+      allow update: if canEdit() && keepsOwnership();
+      allow delete: if canEdit();
+    }
+    match /doc/{id} {
+      allow create: if canEdit() && idMatches(id);
+      allow update: if canEdit() && keepsOwnership();
+      allow delete: if canEdit();
+    }
+    match /dashboard/{id} {
+      allow create: if canEdit() && idMatches(id);
+      allow update: if canEdit() && keepsOwnership();
+      allow delete: if canEdit();
     }
 
     // ---------- personal rows ----------
     // profiles: your own, or placeholder teammates (ids starting with u_)
     match /user/{id} {
-      allow create, update: if isMember() && idMatches(id) && (id == uid() || id.matches('u_.*'));
+      allow create, update: if isMember() && idMatches(id) && (id == uid() || (canEdit() && id.matches('u_.*')));
     }
 
     // comments: written as yourself; others may only add/remove their own like
@@ -121,7 +129,7 @@ service cloud.firestore {
       allow read: if isMember() && (resource.data.userId == uid() || resource.data.actorId == uid());
       allow create: if isMember() && idMatches(id) && request.resource.data.actorId == uid();
       allow update: if isMember() && keepsOwnership()
-        && uid() in [resource.data.userId, resource.data.actorId]
+        && (resource.data.userId == uid() || resource.data.actorId == uid())
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
     }
   }

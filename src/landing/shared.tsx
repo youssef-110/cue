@@ -1,95 +1,118 @@
-import { motion, type Variants } from 'motion/react'
-import type { ReactNode } from 'react'
-import { cx } from '../components/ui'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import cx from 'clsx'
 
-// shortcut: placeholder repo URL, set this to the real repository before launch.
 export const REPO_URL = 'https://github.com/youssef-110/tideline'
 export const APP_URL = './app.html'
 
-/** Mirrors the app's label palette so the mocks look like the real product. */
-export const C = {
-  green: '#00b884',
-  teal: '#14b8c4',
-  sky: '#3b9bff',
-  indigo: '#5b5bf0',
-  violet: '#9a5cf5',
-  pink: '#ec4f9a',
-  red: '#f0475a',
-  orange: '#ff8a3d',
-  amber: '#f7b500',
-  slate: '#8a93a6',
-} as const
-
-export const PEOPLE = {
-  maya: { name: 'Maya Lind', color: C.violet },
-  leo: { name: 'Leo Okafor', color: C.orange },
-  ines: { name: 'Inès Duval', color: C.teal },
-  sam: { name: 'Sam Reyes', color: C.pink },
-} as const
-export type Person = (typeof PEOPLE)[keyof typeof PEOPLE]
-
-export function Face({ p, size = 22, ring }: { p: Person; size?: number; ring?: boolean }) {
-  const initials = p.name
-    .split(' ')
-    .map((s) => s[0])
-    .join('')
+/** Page column: 16px gutter on phones, wider on desktop. */
+/**
+ * The Cue mark, same drawing as Logo in components/ui. Duplicated so the site
+ * does not pull the app's UI module (and its animation library) into its bundle.
+ */
+export function Logo({ size = 28 }: { size?: number }) {
   return (
-    <span
-      title={p.name}
-      className={cx('inline-grid shrink-0 place-items-center rounded-full font-semibold text-white', ring && 'ring-2 ring-panel')}
-      style={{ width: size, height: size, fontSize: size * 0.4, background: `linear-gradient(135deg, ${p.color}, color-mix(in oklab, ${p.color} 68%, #000))` }}
-    >
-      {initials}
+    <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden>
+      <rect width="32" height="32" rx="5" fill="#F6D11F" />
+      <path d="M22.4 9.6A9 9 0 1 0 22.4 22.4" fill="none" stroke="#121212" strokeWidth="4" />
+      <path d="M16 16h7.5" stroke="#121212" strokeWidth="2.4" />
+      <circle cx="16" cy="16" r="2.4" fill="#121212" />
+    </svg>
+  )
+}
+
+export const WRAP = 'mx-auto w-full max-w-[1240px] px-4 sm:px-8'
+
+export function useReducedMotion() {
+  const query = '(prefers-reduced-motion: reduce)'
+  const [reduced, setReduced] = useState(() => typeof matchMedia !== 'undefined' && matchMedia(query).matches)
+  useEffect(() => {
+    const m = matchMedia(query)
+    const on = () => setReduced(m.matches)
+    m.addEventListener('change', on)
+    return () => m.removeEventListener('change', on)
+  }, [])
+  return reduced
+}
+
+const DAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
+const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
+const pad = (n: number) => String(n).padStart(2, '0')
+
+/** "THU 19 NOV 10:42", refreshed every 20 seconds. */
+export function useClock() {
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 20_000)
+    return () => clearInterval(t)
+  }, [])
+  return {
+    day: `${DAYS[now.getDay()]} ${pad(now.getDate())} ${MONTHS[now.getMonth()]}`,
+    time: `${pad(now.getHours())}:${pad(now.getMinutes())}`,
+  }
+}
+
+const GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+
+/**
+ * Split-flap text: when `text` changes, every character that differs spins through
+ * glyphs and settles left to right, like a station board. Unchanged characters stay put.
+ * `tiles` draws each character on its own flap; otherwise it is plain fixed-width text.
+ */
+export function Flap({ text, tiles, className, tileClassName }: { text: string; tiles?: boolean; className?: string; tileClassName?: string }) {
+  const reduced = useReducedMotion()
+  const [shown, setShown] = useState(text)
+  const prev = useRef(text)
+  useEffect(() => {
+    const from = prev.current
+    prev.current = text
+    if (reduced || from === text) {
+      setShown(text)
+      return
+    }
+    const len = Math.max(from.length, text.length)
+    const start = performance.now()
+    const settleAt = (i: number) => (tiles ? 160 + i * 45 : 110 + i * 16)
+    let raf = 0
+    const step = (now: number) => {
+      const t = now - start
+      let out = ''
+      let done = true
+      for (let i = 0; i < len; i++) {
+        const target = text[i] ?? ' '
+        if (t >= settleAt(i) || target === (from[i] ?? ' ')) out += target
+        else {
+          done = false
+          out += GLYPHS[(Math.floor(t / 55) * 7 + i * 11) % GLYPHS.length]
+        }
+      }
+      setShown(done ? text : out)
+      if (!done) raf = requestAnimationFrame(step)
+    }
+    raf = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(raf)
+  }, [text, tiles, reduced])
+
+  if (!tiles) return <span className={cx('whitespace-pre', className)}>{shown}</span>
+  return (
+    <span className={cx('flex', className)}>
+      {[...shown].map((ch, i) => (
+        <span key={i} className={cx('flap-tile', ch === ':' && 'flap-tile--narrow', tileClassName)}>
+          {ch === ' ' ? ' ' : ch}
+        </span>
+      ))}
     </span>
   )
 }
 
-export function Pill({ color, children, className }: { color: string; children: ReactNode; className?: string }) {
+/** Section header: big condensed caps over the 2px ink rule the app uses under column headers. */
+export function SectionHead({ id, title, children, onInk }: { id: string; title: ReactNode; children?: ReactNode; onInk?: boolean }) {
   return (
-    <span className={cx('grid h-full w-full place-items-center truncate px-1.5 text-[11px] font-medium text-white', className)} style={{ background: color }}>
-      {children}
-    </span>
-  )
-}
-
-const revealParent: Variants = { hidden: {}, show: { transition: { staggerChildren: 0.08 } } }
-export const revealChild: Variants = {
-  hidden: { opacity: 0, y: 18 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.2, 0.8, 0.2, 1] } },
-}
-
-/** Staggered scroll reveal. Children should be <Reveal.Item>. */
-export function Reveal({ children, className, as = 'div' }: { children: ReactNode; className?: string; as?: 'div' | 'ul' | 'ol' }) {
-  const Tag = motion[as]
-  return (
-    <Tag className={className} variants={revealParent} initial="hidden" whileInView="show" viewport={{ once: true, margin: '0px 0px -12% 0px' }}>
-      {children}
-    </Tag>
-  )
-}
-export function RevealItem({ children, className, as = 'div' }: { children: ReactNode; className?: string; as?: 'div' | 'li' }) {
-  const Tag = motion[as]
-  return (
-    <Tag className={className} variants={revealChild}>
-      {children}
-    </Tag>
-  )
-}
-
-export function SectionHead({ id, title, children, center }: { id: string; title: ReactNode; children?: ReactNode; center?: boolean }) {
-  return (
-    <Reveal className={cx('max-w-2xl', center && 'mx-auto text-center')}>
-      <RevealItem>
-        <h2 id={id} className="font-display text-[clamp(2rem,4.6vw,3.4rem)] leading-[1.02] font-bold tracking-[-0.035em] text-balance">
-          {title}
-        </h2>
-      </RevealItem>
-      {children && (
-        <RevealItem>
-          <p className="mt-5 text-[17px] leading-relaxed text-pretty text-muted">{children}</p>
-        </RevealItem>
-      )}
-    </Reveal>
+    <div className={cx('grid gap-x-12 gap-y-4 border-b-2 pb-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:items-end', onInk ? 'border-on-ink' : 'border-fg')}>
+      <h2 id={id} className="caps text-[clamp(2.5rem,6.4vw,5rem)] leading-[0.88] font-bold tracking-[0.01em] text-balance">
+        {title}
+      </h2>
+      {children && <p className={cx('max-w-[46ch] text-[17px] leading-[1.5] text-pretty', onInk ? 'text-on-ink-muted' : 'text-muted')}>{children}</p>}
+    </div>
   )
 }
 
@@ -101,24 +124,11 @@ export function GitHubMark({ size = 16 }: { size?: number }) {
   )
 }
 
-/** Three stacked waves taken from the logo, rolling sideways. Decorative. */
-export function Tideline({ className }: { className?: string }) {
-  const wave = (amp: number) => {
-    let d = `M0 ${20}`
-    for (let x = 0; x < 2400; x += 120) d += ` q30 ${-amp} 60 0 t60 0`
-    return d
-  }
+/** Small solid label tag, the app's status grammar. */
+export function Tag({ color, ink, children }: { color: string; ink?: boolean; children: ReactNode }) {
   return (
-    <div className={cx('pointer-events-none overflow-hidden', className)} aria-hidden>
-      {[
-        { amp: 9, color: '#5b5bf0', dur: '18s', op: 0.55 },
-        { amp: 7, color: '#4a7dff', dur: '13s', op: 0.45 },
-        { amp: 5, color: '#14c4c4', dur: '9s', op: 0.6 },
-      ].map((w, i) => (
-        <svg key={i} className="lp-wave block h-6 w-[200%]" style={{ ['--dur' as string]: w.dur, marginTop: i ? -10 : 0 }} viewBox="0 0 2400 40" preserveAspectRatio="none">
-          <path d={wave(w.amp)} fill="none" stroke={w.color} strokeOpacity={w.op} strokeWidth="2.2" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-        </svg>
-      ))}
-    </div>
+    <span className="caps inline-block rounded-sm px-1.5 pt-[3px] pb-[2px] text-[12px] leading-none font-semibold tracking-[0.08em]" style={{ background: color, color: ink ? '#121212' : '#ffffff' }}>
+      {children}
+    </span>
   )
 }

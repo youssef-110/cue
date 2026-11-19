@@ -1,15 +1,14 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { animate, motion } from 'motion/react'
+import { useEffect, useState, type ReactNode } from 'react'
+import { motion } from 'motion/react'
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis, type TooltipContentProps } from 'recharts'
 import type { NameType, ValueType } from 'recharts/types/component/DefaultTooltipContent'
-import { AlarmClock, ChartPie, CircleCheck, LayoutDashboard, ListChecks, Sigma } from 'lucide-react'
+import { LayoutDashboard } from 'lucide-react'
 import { labelOf, useStore } from '../lib/store'
-import { today } from '../lib/seed'
+import { inkOn, today } from '../lib/seed'
 import type { Board, Column, Item, View } from '../lib/types'
 import { Avatar, cx } from '../components/ui'
 import { fmtNumber } from '../components/cells'
 import { ColumnPicker, EmptyView } from './KanbanView'
-import { inkOn } from './TimelineView'
 
 const NONE = '__none'
 type Bucket = { id: string; name: string; color: string }
@@ -17,7 +16,9 @@ type Bucket = { id: string; name: string; color: string }
 // SVG presentation attributes can't take var(), so chart chrome reads the live theme tokens.
 const TOKENS = ['--panel', '--line', '--hover', '--muted', '--faint', '--fg', '--accent'] as const
 type Tokens = Record<(typeof TOKENS)[number], string>
-const LIGHT: Tokens = { '--panel': '#fff', '--line': '#e4e6ef', '--hover': '#eceef6', '--muted': '#5d6378', '--faint': '#9aa0b4', '--fg': '#171a2b', '--accent': '#5b5bf0' }
+const LIGHT: Tokens = { '--panel': '#ffffff', '--line': '#e3e2db', '--hover': '#ebeae3', '--muted': '#55554f', '--faint': '#74746e', '--fg': '#121212', '--accent': '#1d4fb8' }
+const MONO = "'JetBrains Mono', ui-monospace, monospace"
+const SANS = "'Barlow', ui-sans-serif, sans-serif"
 function useTokens() {
   const theme = useStore((s) => s.theme)
   const [t, setT] = useState(LIGHT)
@@ -32,34 +33,27 @@ function useTokens() {
   return t
 }
 
-function CountUp({ value, format = (n) => Math.round(n).toLocaleString() }: { value: number; format?: (n: number) => string }) {
-  const ref = useRef<HTMLSpanElement>(null)
-  const from = useRef(0)
-  useEffect(() => {
-    const c = animate(from.current, value, {
-      duration: 0.9,
-      ease: [0.2, 0.8, 0.2, 1],
-      onUpdate: (v) => {
-        from.current = v
-        if (ref.current) ref.current.textContent = format(v)
-      },
-    })
-    return () => c.stop()
-  }, [value]) // eslint-disable-line react-hooks/exhaustive-deps
-  return <span ref={ref}>{format(0)}</span>
+/** A figure that ticks like a flap board when it changes. */
+function Figure({ value, format = (n) => Math.round(n).toLocaleString() }: { value: number; format?: (n: number) => string }) {
+  const text = format(value)
+  return (
+    <span key={text} className="flap inline-block">
+      {text}
+    </span>
+  )
 }
 
-function Card({ i, title, icon, aside, className, children }: { i: number; title: string; icon?: ReactNode; aside?: ReactNode; className?: string; children: ReactNode }) {
+/** Ruled panel: caps title on a 2px ink rule, white ground, no shadow. */
+function Card({ i, title, aside, className, children }: { i: number; title: string; aside?: ReactNode; className?: string; children: ReactNode }) {
   return (
     <motion.section
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: 0.04 * i, ease: [0.2, 0.8, 0.2, 1] }}
-      className={cx('flex min-w-0 flex-col rounded-2xl border border-line bg-panel p-4 shadow-card', className)}
+      transition={{ duration: 0.16, delay: 0.03 * i, ease: 'easeOut' }}
+      className={cx('flex min-w-0 flex-col rounded-lg border border-line bg-panel px-4 pt-3 pb-4', className)}
     >
-      <header className="mb-3 flex min-h-7 items-center gap-2">
-        {icon && <span className="text-faint [&>svg]:size-4">{icon}</span>}
-        <h3 className="text-[13.5px] font-semibold text-fg">{title}</h3>
+      <header className="mb-4 flex min-h-8 items-end gap-2 border-b-2 border-fg pb-1.5">
+        <h3 className="caps truncate text-[15px] font-bold tracking-[0.1em] text-fg">{title}</h3>
         <span className="flex-1" />
         {aside}
       </header>
@@ -68,24 +62,16 @@ function Card({ i, title, icon, aside, className, children }: { i: number; title
   )
 }
 
-function Kpi({ i, label, value, format, sub, icon, children }: { i: number; label: string; value: number; format?: (n: number) => string; sub?: ReactNode; icon: ReactNode; children?: ReactNode }) {
+/** One figure in the departures summary row. */
+function Kpi({ label, value, format, sub, alert }: { label: string; value: number; format?: (n: number) => string; sub?: ReactNode; alert?: boolean }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, delay: 0.04 * i, ease: [0.2, 0.8, 0.2, 1] }}
-      className="flex min-w-0 flex-col rounded-2xl border border-line bg-panel p-4 shadow-card"
-    >
-      <span className="flex items-center gap-1.5 text-[12.5px] text-muted [&>svg]:size-3.5 [&>svg]:text-faint">
-        {icon}
-        <span className="truncate">{label}</span>
+    <div className="flex min-w-0 flex-col border-line px-4 py-3 not-first:border-l">
+      <span className="caps truncate text-[12.5px] font-semibold tracking-[0.14em] text-muted">{label}</span>
+      <span className={cx('mt-1 truncate font-mono text-[32px] leading-none font-semibold tracking-tight tabular-nums', alert ? 'text-alert' : 'text-fg')}>
+        <Figure value={value} format={format} />
       </span>
-      <span className="mt-1.5 truncate text-[28px] leading-tight font-semibold tracking-tight text-fg">
-        <CountUp value={value} format={format} />
-      </span>
-      {sub && <span className="mt-0.5 truncate text-[12px] text-faint">{sub}</span>}
-      {children}
-    </motion.div>
+      {sub && <span className="mt-1.5 truncate text-[12.5px] text-muted">{sub}</span>}
+    </div>
   )
 }
 
@@ -94,8 +80,8 @@ function Legend({ buckets, counts }: { buckets: Bucket[]; counts?: Map<string, n
   return (
     <ul className="flex flex-wrap gap-x-4 gap-y-1.5">
       {buckets.map((b) => (
-        <li key={b.id} className="flex items-center gap-1.5 text-[12px] text-muted">
-          <span className="size-2.5 rounded-[3px]" style={{ background: b.color }} />
+        <li key={b.id} className="flex items-center gap-1.5 text-[12.5px] text-muted">
+          <span className="size-2.5 rounded-[1px]" style={{ background: b.color }} />
           {b.name}
           {counts && <span className="font-mono text-faint tabular-nums">{counts.get(b.id) ?? 0}</span>}
         </li>
@@ -109,8 +95,8 @@ function Battery({ buckets, counts, total }: { buckets: Bucket[]; counts: Map<st
   const [tip, setTip] = useState<string | null>(null)
   const parts = buckets.filter((b) => (counts.get(b.id) ?? 0) > 0)
   return (
-    <div className="flex h-7 gap-[2px]" role="img" aria-label={parts.map((b) => `${b.name} ${counts.get(b.id)}`).join(', ')}>
-      {total === 0 && <div className="flex-1 rounded-[4px] bg-panel-2" />}
+    <div className="flex h-8 gap-[2px]" role="img" aria-label={parts.map((b) => `${b.name} ${counts.get(b.id)}`).join(', ')}>
+      {total === 0 && <div className="flex-1 rounded-sm bg-panel-2" />}
       {parts.map((b, idx) => {
         const n = counts.get(b.id)!
         const pct = (n / total) * 100
@@ -120,16 +106,16 @@ function Battery({ buckets, counts, total }: { buckets: Bucket[]; counts: Map<st
             tabIndex={0}
             initial={{ width: 0 }}
             animate={{ width: `${pct}%` }}
-            transition={{ duration: 0.7, delay: 0.15 + idx * 0.05, ease: [0.2, 0.8, 0.2, 1] }}
+            transition={{ duration: 0.4, delay: 0.05 + idx * 0.03, ease: 'easeOut' }}
             onPointerEnter={() => setTip(b.id)}
             onPointerLeave={() => setTip(null)}
             onFocus={() => setTip(b.id)}
             onBlur={() => setTip(null)}
-            className="relative min-w-[3px] rounded-[4px] outline-offset-1 transition-[filter] hover:brightness-110"
+            className="label-fill relative min-w-[3px] rounded-sm outline-offset-1"
             style={{ background: b.color }}
           >
             {pct >= 9 && (
-              <span className="pointer-events-none absolute inset-y-0 left-2 flex items-center font-mono text-[11px] font-medium tabular-nums" style={{ color: inkOn(b.color) }}>
+              <span className="pointer-events-none absolute inset-y-0 left-2 flex items-center font-mono text-[11.5px] font-semibold tabular-nums" style={{ color: inkOn(b.color) }}>
                 {Math.round(pct)}%
               </span>
             )}
@@ -147,17 +133,17 @@ function Battery({ buckets, counts, total }: { buckets: Bucket[]; counts: Map<st
 
 function TipBox({ title, className, children }: { title?: ReactNode; className?: string; children: ReactNode }) {
   return (
-    <div className={cx('pointer-events-none min-w-32 rounded-lg border border-line bg-panel px-2.5 py-2 whitespace-nowrap shadow-pop', className)}>
-      {title && <div className="mb-1 text-[11.5px] text-muted">{title}</div>}
+    <div className={cx('pointer-events-none min-w-32 rounded-md border border-line-strong bg-panel px-2.5 py-2 whitespace-nowrap shadow-pop', className)}>
+      {title && <div className="caps mb-1 border-b border-line pb-1 text-[12.5px] font-semibold tracking-[0.1em] text-fg">{title}</div>}
       <div className="flex flex-col gap-1">{children}</div>
     </div>
   )
 }
 function TipRow({ color, value, name }: { color: string; value: ReactNode; name: string }) {
   return (
-    <div className="flex items-center gap-2 text-[12px]">
-      <span className="h-[2px] w-2.5 shrink-0 rounded-full" style={{ background: color }} />
-      <span className="font-semibold text-fg tabular-nums">{value}</span>
+    <div className="flex items-center gap-2 text-[12.5px]">
+      <span className="size-2.5 shrink-0 rounded-[1px]" style={{ background: color }} />
+      <span className="font-mono font-semibold text-fg tabular-nums">{value}</span>
       <span className="text-muted">{name}</span>
     </div>
   )
@@ -242,7 +228,8 @@ export function ChartView({ board, items, view }: { board: Board; items: Item[];
   const stackKeys = shown.map((b) => b.id)
   const numData = numCol ? groups.map(({ g, list }) => ({ name: g.title, value: sumOf(numCol, list), fill: g.color })) : []
 
-  const axis = { fontSize: 11.5, fill: tk['--muted'] }
+  const axis = { fontSize: 12, fill: tk['--muted'], fontFamily: SANS }
+  const axisNum = { fontSize: 11.5, fill: tk['--muted'], fontFamily: MONO }
   const tickFmt = (v: number) => (Math.abs(v) >= 10000 ? `${Math.round(v / 1000)}K` : v.toLocaleString())
   let card = 0
 
@@ -250,43 +237,38 @@ export function ChartView({ board, items, view }: { board: Board; items: Item[];
     <div className="h-full overflow-y-auto bg-bg">
       <div className="mx-auto flex max-w-[1360px] flex-col gap-3 px-5 pt-4 pb-10">
         <div className="flex flex-wrap items-center justify-between gap-3 pb-1">
-          <p className="text-[12.5px] text-muted">
-            <span className="font-medium text-fg tabular-nums">{items.length}</span> items across <span className="font-medium text-fg tabular-nums">{groups.length}</span>{' '}
+          <p className="text-[13px] text-muted">
+            <span className="font-mono font-medium text-fg tabular-nums">{items.length}</span> items across <span className="font-mono font-medium text-fg tabular-nums">{groups.length}</span>{' '}
             {groups.length === 1 ? 'group' : 'groups'}
           </p>
           {labelCols.length > 0 && <ColumnPicker board={board} view={view} columns={labelCols} current={col} label="Chart by" />}
         </div>
 
-        {/* KPI row */}
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-3">
-          <Kpi i={card++} icon={<ListChecks />} label="Total items" value={items.length} sub={`${groups.length} ${groups.length === 1 ? 'group' : 'groups'}`} />
-          <Kpi i={card++} icon={<CircleCheck />} label="Done" value={donePct} format={(n) => `${Math.round(n)}%`} sub={doneCol ? `${doneN} of ${items.length} by ${doneCol.title}` : 'No “done” label yet'}>
-            <span className="mt-2.5 h-1.5 overflow-hidden rounded-full" style={{ background: `color-mix(in oklab, var(--accent) 16%, transparent)` }}>
-              <motion.span className="block h-full rounded-full bg-accent" initial={{ width: 0 }} animate={{ width: `${donePct}%` }} transition={{ duration: 0.9, ease: [0.2, 0.8, 0.2, 1] }} />
-            </span>
-          </Kpi>
+        {/* summary row, read like a departures board */}
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] rounded-lg border border-line bg-panel">
+          <Kpi label="Items" value={items.length} sub={`in ${groups.length} ${groups.length === 1 ? 'group' : 'groups'}`} />
+          <Kpi label="Done" value={donePct} format={(n) => `${Math.round(n)}%`} sub={doneCol ? `${doneN} of ${items.length} by ${doneCol.title}` : 'No “done” label yet'} />
           <Kpi
-            i={card++}
-            icon={<AlarmClock />}
-            label="Overdue"
+            label="Delayed"
             value={overdueN}
-            sub={dueCol ? (overdueN ? <span className="text-red-500">past {dueCol.title.toLowerCase()} and not done</span> : `nothing past ${dueCol.title.toLowerCase()}`) : 'No date column'}
+            alert={overdueN > 0}
+            sub={dueCol ? (overdueN ? `past ${dueCol.title.toLowerCase()}, not done` : `nothing past ${dueCol.title.toLowerCase()}`) : 'No date column'}
           />
           {numCols.map((c) => (
-            <Kpi key={c.id} i={card++} icon={<Sigma />} label={c.title} value={sumOf(c, items)} format={(n) => fmtNumber(Math.round(n), c.unit)} sub="total" />
+            <Kpi key={c.id} label={c.title} value={sumOf(c, items)} format={(n) => fmtNumber(Math.round(n), c.unit)} sub="total" />
           ))}
         </div>
 
         {/* battery per status column */}
         {statusCols.length > 0 && (
-          <Card i={card++} title="Progress" icon={<CircleCheck />}>
+          <Card i={card++} title="Progress">
             <div className="flex flex-col gap-5">
               {statusCols.map((c) => {
                 const m = countBy(c, items)
                 const bs = bucketsOf(c).filter((b) => m.get(b.id))
                 return (
                   <div key={c.id} className="flex flex-col gap-2">
-                    {statusCols.length > 1 && <span className="text-[12px] font-medium text-muted">{c.title}</span>}
+                    {statusCols.length > 1 && <span className="caps text-[13px] font-semibold tracking-[0.1em] text-muted">{c.title}</span>}
                     <Battery buckets={bs} counts={m} total={items.length} />
                     <Legend buckets={bs} counts={m} />
                   </div>
@@ -298,12 +280,12 @@ export function ChartView({ board, items, view }: { board: Board; items: Item[];
 
         <div className="grid gap-3 lg:grid-cols-2">
           {/* donut */}
-          <Card i={card++} title={`Items by ${col?.title.toLowerCase() ?? 'status'}`} icon={<ChartPie />}>
+          <Card i={card++} title={`Items by ${col?.title.toLowerCase() ?? 'status'}`}>
             <div className="flex flex-1 flex-col items-center gap-5 sm:flex-row">
               <div className="relative size-[210px] shrink-0">
                 <ResponsiveContainer>
                   <PieChart>
-                    <Pie data={pie} dataKey="value" nameKey="name" innerRadius={66} outerRadius={98} cornerRadius={4} paddingAngle={0} stroke={tk['--panel']} strokeWidth={2} startAngle={90} endAngle={-270} animationDuration={800}>
+                    <Pie data={pie} dataKey="value" nameKey="name" innerRadius={66} outerRadius={98} cornerRadius={0} paddingAngle={0} stroke={tk['--panel']} strokeWidth={2} startAngle={90} endAngle={-270} animationDuration={800}>
                       {pie.map((p) => (
                         <Cell key={p.id} fill={p.fill} />
                       ))}
@@ -313,19 +295,19 @@ export function ChartView({ board, items, view }: { board: Board; items: Item[];
                 </ResponsiveContainer>
                 <div className="pointer-events-none absolute inset-0 grid place-items-center text-center">
                   <span>
-                    <span className="block text-[26px] leading-none font-semibold text-fg">
-                      <CountUp value={items.length} />
+                    <span className="block font-mono text-[28px] leading-none font-semibold text-fg tabular-nums">
+                      <Figure value={items.length} />
                     </span>
-                    <span className="text-[11.5px] text-muted">items</span>
+                    <span className="caps text-[12px] font-semibold tracking-[0.14em] text-muted">items</span>
                   </span>
                 </div>
               </div>
-              <ul className="flex w-full min-w-0 flex-col gap-1.5">
+              <ul className="flex w-full min-w-0 flex-col divide-y divide-line border-y border-line">
                 {shown.map((b) => {
                   const n = counts.get(b.id)!
                   return (
-                    <li key={b.id} className="flex items-center gap-2 rounded-lg px-2 py-1 text-[12.5px] hover:bg-hover">
-                      <span className="size-2.5 shrink-0 rounded-[3px]" style={{ background: b.color }} />
+                    <li key={b.id} className="flex items-center gap-2 px-1 py-1.5 text-[13px] hover:bg-hover">
+                      <span className="size-2.5 shrink-0 rounded-[1px]" style={{ background: b.color }} />
                       <span className="flex-1 truncate text-fg">{b.name}</span>
                       <span className="font-mono text-muted tabular-nums">{n}</span>
                       <span className="w-10 text-right font-mono text-faint tabular-nums">{Math.round((n / items.length) * 100)}%</span>
@@ -337,7 +319,7 @@ export function ChartView({ board, items, view }: { board: Board; items: Item[];
           </Card>
 
           {/* workload */}
-          <Card i={card++} title={people ? `Workload by ${people.title.toLowerCase()}` : 'Workload'} icon={<ListChecks />}>
+          <Card i={card++} title={people ? `Workload by ${people.title.toLowerCase()}` : 'Workload'}>
             {people ? (
               <div className="flex flex-col gap-3">
                 <div className="flex flex-col gap-2.5">
@@ -348,14 +330,14 @@ export function ChartView({ board, items, view }: { board: Board; items: Item[];
                       <div key={uid} className="flex items-center gap-3">
                         <span className="flex w-36 shrink-0 items-center gap-2">
                           {user ? <Avatar user={user} size={22} /> : <span className="size-[22px] shrink-0 rounded-full border border-dashed border-line-strong" />}
-                          <span className={cx('truncate text-[12.5px]', user ? 'text-fg' : 'text-muted')}>{user?.name ?? 'Unassigned'}</span>
+                          <span className={cx('truncate text-[13px]', user ? 'text-fg' : 'text-muted')}>{user?.name ?? 'Unassigned'}</span>
                         </span>
                         <span className="flex h-5 min-w-0 flex-1">
                           <motion.span
                             className="flex h-full gap-[2px]"
                             initial={{ width: 0 }}
                             animate={{ width: `${(list.length / maxLoad) * 100}%` }}
-                            transition={{ duration: 0.7, delay: 0.2 + idx * 0.05, ease: [0.2, 0.8, 0.2, 1] }}
+                            transition={{ duration: 0.4, delay: 0.05 + idx * 0.03, ease: 'easeOut' }}
                           >
                             {shown
                               .filter((b) => m.get(b.id))
@@ -363,7 +345,7 @@ export function ChartView({ board, items, view }: { board: Board; items: Item[];
                                 <span
                                   key={b.id}
                                   title={`${b.name}: ${m.get(b.id)}`}
-                                  className={cx('h-full min-w-[3px] transition-[filter] hover:brightness-110', j === arr.length - 1 && 'rounded-r-[4px]')}
+                                  className={cx('label-fill h-full min-w-[3px]', j === arr.length - 1 && 'rounded-r-sm')}
                                   style={{ flexGrow: m.get(b.id), flexBasis: 0, background: b.color }}
                                 />
                               ))}
@@ -377,22 +359,22 @@ export function ChartView({ board, items, view }: { board: Board; items: Item[];
                 <Legend buckets={shown} />
               </div>
             ) : (
-              <p className="py-8 text-center text-[13px] text-muted">Add a people column to see who carries the load.</p>
+              <p className="py-8 text-center text-[13.5px] text-muted">Add a people column to see who carries the load.</p>
             )}
           </Card>
 
           {/* per group, stacked by label */}
-          <Card i={card++} title={`Groups by ${col?.title.toLowerCase() ?? 'status'}`} icon={<LayoutDashboard />} className={numCol ? undefined : 'lg:col-span-2'}>
+          <Card i={card++} title={`Groups by ${col?.title.toLowerCase() ?? 'status'}`} className={numCol ? undefined : 'lg:col-span-2'}>
             <div className="h-[240px]">
               <ResponsiveContainer>
                 <BarChart data={groupData} margin={{ top: 8, right: 4, bottom: 0, left: -18 }}>
                   <CartesianGrid vertical={false} stroke={tk['--line']} />
                   <XAxis dataKey="name" tick={axis} axisLine={false} tickLine={false} interval={0} />
-                  <YAxis allowDecimals={false} tick={axis} axisLine={false} tickLine={false} width={44} />
+                  <YAxis allowDecimals={false} tick={axisNum} axisLine={false} tickLine={false} width={44} />
                   <Tooltip content={chartTip()} cursor={{ fill: tk['--hover'], opacity: 0.6 }} />
                   {stackKeys.map((k, i) => {
                     const b = shown[i]
-                    return <Bar key={k} dataKey={k} name={b.name} stackId="s" fill={b.color} stroke={tk['--panel']} strokeWidth={2} maxBarSize={28} radius={i === stackKeys.length - 1 ? [4, 4, 0, 0] : 0} animationDuration={700} />
+                    return <Bar key={k} dataKey={k} name={b.name} stackId="s" fill={b.color} stroke={tk['--panel']} strokeWidth={2} maxBarSize={28} radius={i === stackKeys.length - 1 ? [2, 2, 0, 0] : 0} animationDuration={400} />
                   })}
                 </BarChart>
               </ResponsiveContainer>
@@ -407,15 +389,15 @@ export function ChartView({ board, items, view }: { board: Board; items: Item[];
             <Card
               i={card++}
               title={`${numCol.title} by group`}
-              icon={<Sigma />}
               aside={
                 numCols.length > 1 && (
-                  <div className="flex rounded-lg border border-line p-0.5">
+                  <div className="flex rounded-md border border-line p-0.5">
                     {numCols.map((c) => (
                       <button
                         key={c.id}
                         onClick={() => setNumId(c.id)}
-                        className={cx('h-6 rounded-md px-2 text-[12px] transition-colors', c.id === numCol.id ? 'bg-panel-2 font-medium text-fg' : 'text-muted hover:text-fg')}
+                        aria-pressed={c.id === numCol.id}
+                        className={cx('h-6 rounded-sm px-2 text-[12.5px] transition-colors', c.id === numCol.id ? 'bg-fg font-medium text-bg' : 'text-muted hover:text-fg')}
                       >
                         {c.title}
                       </button>
@@ -429,16 +411,16 @@ export function ChartView({ board, items, view }: { board: Board; items: Item[];
                   <BarChart data={numData} margin={{ top: 22, right: 4, bottom: 0, left: -6 }}>
                     <CartesianGrid vertical={false} stroke={tk['--line']} />
                     <XAxis dataKey="name" tick={axis} axisLine={false} tickLine={false} interval={0} />
-                    <YAxis tick={axis} axisLine={false} tickLine={false} width={52} tickFormatter={tickFmt} />
+                    <YAxis tick={axisNum} axisLine={false} tickLine={false} width={52} tickFormatter={tickFmt} />
                     <Tooltip content={chartTip((v) => fmtNumber(v, numCol.unit))} cursor={{ fill: tk['--hover'], opacity: 0.6 }} />
-                    <Bar dataKey="value" name={numCol.title} maxBarSize={28} radius={[4, 4, 0, 0]} animationDuration={700}>
+                    <Bar dataKey="value" name={numCol.title} maxBarSize={28} radius={[2, 2, 0, 0]} animationDuration={400}>
                       {numData.map((d) => (
                         <Cell key={d.name} fill={d.fill} />
                       ))}
                       <LabelList
                         dataKey="value"
                         content={(l) => (
-                          <text x={Number(l.x) + Number(l.width) / 2} y={Number(l.y) - 6} textAnchor="middle" fontSize={11.5} fill={tk['--muted']}>
+                          <text x={Number(l.x) + Number(l.width) / 2} y={Number(l.y) - 6} textAnchor="middle" fontSize={11.5} fontFamily={MONO} fill={tk['--fg']}>
                             {fmtNumber(Number(l.value), numCol.unit)}
                           </text>
                         )}
