@@ -27,8 +27,12 @@ beforeEach(async () => {
     await setDoc(doc(db, 'members/ada'), { uid: 'ada', username: 'ada', name: 'Ada', role: 'admin', addedBy: 'ada', addedAt: 1 })
     await setDoc(doc(db, 'members/bo'), { uid: 'bo', username: 'bo', name: 'Bo', role: 'member', addedBy: 'ada', addedAt: 2, mustChangePassword: true })
     await setDoc(doc(db, 'members/vi'), { uid: 'vi', username: 'vi', name: 'Vi', role: 'viewer', addedBy: 'ada', addedAt: 3 })
-    await setDoc(doc(db, 'item/i1'), { id: 'i1', name: 'Task', createdBy: 'ada', values: {} })
-    await setDoc(doc(db, 'update/u1'), { id: 'u1', authorId: 'ada', body: 'hi', likes: [] })
+    await setDoc(doc(db, 'board/b1'), { id: 'b1', name: 'Team', readers: ['*'] })
+    await setDoc(doc(db, 'item/i1'), { id: 'i1', name: 'Task', createdBy: 'ada', values: {}, boardId: 'b1', readers: ['*'] })
+    await setDoc(doc(db, 'update/u1'), { id: 'u1', authorId: 'ada', body: 'hi', likes: [], boardId: 'b1', readers: ['*'] })
+    // a private board shared with bo only (ada is an admin, so she sees it anyway)
+    await setDoc(doc(db, 'board/bp'), { id: 'bp', name: 'Secret', readers: ['bo'] })
+    await setDoc(doc(db, 'item/ip'), { id: 'ip', name: 'Hidden', createdBy: 'bo', values: {}, boardId: 'bp', readers: ['bo'] })
     await setDoc(doc(db, 'notification/n1'), { id: 'n1', userId: 'bo', actorId: 'ada', read: false })
   })
 })
@@ -42,10 +46,10 @@ test('strangers and signed-out visitors see nothing', async () => {
 
 test('members edit shared work; viewers only read', async () => {
   await assertSucceeds(getDoc(doc(bo(), 'item/i1')))
-  await assertSucceeds(setDoc(doc(bo(), 'item/i1'), { id: 'i1', name: 'Renamed', createdBy: 'ada', values: {} }))
-  await assertFails(setDoc(doc(bo(), 'item/i1'), { id: 'i1', name: 'Mine now', createdBy: 'bo', values: {} }))
+  await assertSucceeds(setDoc(doc(bo(), 'item/i1'), { id: 'i1', name: 'Renamed', createdBy: 'ada', values: {}, boardId: 'b1', readers: ['*'] }))
+  await assertFails(setDoc(doc(bo(), 'item/i1'), { id: 'i1', name: 'Mine now', createdBy: 'bo', values: {}, boardId: 'b1', readers: ['*'] }))
   await assertSucceeds(getDoc(doc(vi(), 'item/i1')))
-  await assertFails(setDoc(doc(vi(), 'item/i1'), { id: 'i1', name: 'x', createdBy: 'ada', values: {} }))
+  await assertFails(setDoc(doc(vi(), 'item/i1'), { id: 'i1', name: 'x', createdBy: 'ada', values: {}, boardId: 'b1', readers: ['*'] }))
   await assertFails(deleteDoc(doc(vi(), 'item/i1')))
   await assertSucceeds(deleteDoc(doc(bo(), 'item/i1')))
 })
@@ -81,7 +85,7 @@ test('only the configured owner can claim a fresh workspace, once', async () => 
 })
 
 test('comments: only the author edits, others toggle only their own like', async () => {
-  await assertFails(setDoc(doc(bo(), 'update/u2'), { id: 'u2', authorId: 'ada', body: 'fake', likes: [] }))
+  await assertFails(setDoc(doc(bo(), 'update/u2'), { id: 'u2', authorId: 'ada', body: 'fake', likes: [], boardId: 'b1', readers: ['*'] }))
   await assertFails(updateDoc(doc(bo(), 'update/u1'), { body: 'edited' }))
   await assertSucceeds(updateDoc(doc(bo(), 'update/u1'), { likes: ['bo'] }))
   await assertFails(updateDoc(doc(bo(), 'update/u1'), { likes: ['bo', 'bo'] }))
@@ -89,13 +93,13 @@ test('comments: only the author edits, others toggle only their own like', async
   await assertSucceeds(updateDoc(doc(bo(), 'update/u1'), { likes: [] }))
   await assertFails(deleteDoc(doc(bo(), 'update/u1')))
   await assertSucceeds(deleteDoc(doc(ada(), 'update/u1')))
-  await assertSucceeds(setDoc(doc(vi(), 'update/u3'), { id: 'u3', authorId: 'vi', body: 'viewer comment', likes: [] }))
+  await assertSucceeds(setDoc(doc(vi(), 'update/u3'), { id: 'u3', authorId: 'vi', body: 'viewer comment', likes: [], boardId: 'b1', readers: ['*'] }))
 })
 
 test('activity is append-only and signed', async () => {
-  await assertFails(setDoc(doc(bo(), 'activity/a1'), { id: 'a1', actorId: 'ada', text: 'x', at: 1 }))
-  await assertSucceeds(setDoc(doc(bo(), 'activity/a1'), { id: 'a1', actorId: 'bo', text: 'x', at: 1 }))
-  await assertFails(setDoc(doc(bo(), 'activity/a1'), { id: 'a1', actorId: 'bo', text: 'changed', at: 1 }))
+  await assertFails(setDoc(doc(bo(), 'activity/a1'), { id: 'a1', actorId: 'ada', text: 'x', at: 1, boardId: 'b1', readers: ['*'] }))
+  await assertSucceeds(setDoc(doc(bo(), 'activity/a1'), { id: 'a1', actorId: 'bo', text: 'x', at: 1, boardId: 'b1', readers: ['*'] }))
+  await assertFails(setDoc(doc(bo(), 'activity/a1'), { id: 'a1', actorId: 'bo', text: 'changed', at: 1, boardId: 'b1', readers: ['*'] }))
 })
 
 test('notifications are private to recipient and sender', async () => {
@@ -111,4 +115,31 @@ test('profiles: your own or placeholders only', async () => {
   await assertFails(setDoc(doc(bo(), 'user/ada'), { id: 'ada', name: 'Hacked' }))
   await assertSucceeds(setDoc(doc(bo(), 'user/u_guest'), { id: 'u_guest', name: 'Guest' }))
   await assertFails(setDoc(doc(vi(), 'user/u_guest2'), { id: 'u_guest2', name: 'Guest' }))
+})
+
+test('private boards: only their readers (and admins) see or touch them', async () => {
+  // reads
+  await assertSucceeds(getDoc(doc(bo(), 'item/ip')))
+  await assertSucceeds(getDoc(doc(ada(), 'item/ip')))
+  await assertFails(getDoc(doc(vi(), 'item/ip')))
+  await assertFails(getDoc(doc(vi(), 'board/bp')))
+  // the filtered query everyone uses is allowed and returns only what they may see
+  const seen = await assertSucceeds(getDocs(query(collection(vi(), 'item'), where('readers', 'array-contains-any', ['*', 'vi']))))
+  if (seen.docs.map((d) => d.id).join() !== 'i1') throw new Error('viewer saw ' + seen.docs.map((d) => d.id))
+  await assertFails(getDocs(collection(vi(), 'item'))) // an unfiltered query would include private items
+  await assertSucceeds(getDocs(collection(ada(), 'item'))) // admins load everything
+  // writes must carry the board's readers, and you must be one of them
+  await assertFails(setDoc(doc(bo(), 'item/leak'), { id: 'leak', name: 'x', createdBy: 'bo', values: {}, boardId: 'bp', readers: ['*'] }))
+  await assertSucceeds(setDoc(doc(bo(), 'item/ok'), { id: 'ok', name: 'x', createdBy: 'bo', values: {}, boardId: 'bp', readers: ['bo'] }))
+  await assertFails(setDoc(doc(vi(), 'update/sneak'), { id: 'sneak', authorId: 'vi', body: 'x', likes: [], boardId: 'bp', readers: ['bo'] }))
+  // moving a public item onto the private board must restamp it
+  await assertFails(updateDoc(doc(bo(), 'item/i1'), { boardId: 'bp' }))
+  await assertSucceeds(updateDoc(doc(bo(), 'item/i1'), { boardId: 'bp', readers: ['bo'] }))
+  // nobody changes access from the browser: the team server restamps the board's documents together
+  await assertFails(updateDoc(doc(bo(), 'board/bp'), { readers: ['*'] }))
+  await assertFails(updateDoc(doc(ada(), 'board/b1'), { readers: ['ada'] }))
+  await assertFails(setDoc(doc(bo(), 'board/new'), { id: 'new', name: 'x', readers: ['bo'] }))
+  await assertSucceeds(setDoc(doc(bo(), 'board/new'), { id: 'new', name: 'x', readers: ['*'] }))
+  await assertSucceeds(updateDoc(doc(bo(), 'board/bp'), { name: 'Still secret' }))
+  await assertFails(updateDoc(doc(vi(), 'board/bp'), { name: 'x' }))
 })

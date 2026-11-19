@@ -24,12 +24,14 @@ import {
   FileText,
   LayoutDashboard,
   LifeBuoy,
+  Lock,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { archiveBoard, createDoc, createWorkspace, deleteBoard, duplicateBoard, isLive, navigate, setPalette, setTheme, updateBoard, useCanEdit, useStore } from '../lib/store'
+import { archiveBoard, isPrivate, createDoc, createWorkspace, deleteBoard, duplicateBoard, isLive, navigate, setPalette, setTheme, updateBoard, useCanEdit, useStore } from '../lib/store'
 import { signOut } from 'firebase/auth'
 import { auth } from '../lib/sync'
 import { TeamModal } from './TeamModal'
+import { ProfileModal } from './ProfileModal'
 import { importCSV, importXlsx } from '../lib/csv'
 import { Avatar, Kbd, Logo, MenuItem, Popover, Wordmark, cx } from './ui'
 import { TemplateModal } from './TemplateModal'
@@ -54,6 +56,7 @@ export function Sidebar() {
   const unread = useStore((s) => Object.values(s.notification).filter((n) => n.userId === meId && !n.read).length)
   const [templateFor, setTemplateFor] = useState<string | null>(null)
   const [teamOpen, setTeamOpen] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
   useEffect(() => {
     const open = () => setTeamOpen(true)
     addEventListener('cue:open-team', open)
@@ -214,16 +217,23 @@ export function Sidebar() {
 
       <div className="border-t border-on-ink/10 p-3">
         <div className={cx('flex items-center gap-2', collapsed && 'flex-col')}>
-          <Avatar user={me} size={30} />
-          {!collapsed && (
-            <div className="min-w-0 flex-1 leading-tight">
-              <div className="truncate text-[13.5px] font-medium text-on-ink">{me?.name}</div>
-              <div className="flex items-center gap-1 text-[12px] text-on-ink-muted">
-                {auth ? <Cloud className="size-3" /> : <HardDrive className="size-3" />}
-                {auth ? 'Team sync on' : 'Local mode'}
+          <button
+            onClick={() => setProfileOpen(true)}
+            data-tour="profile"
+            title="Your profile and email notifications"
+            className={cx('flex min-w-0 items-center gap-2 rounded-md p-1 text-left transition-colors hover:bg-on-ink/[0.07]', !collapsed && '-m-1 flex-1')}
+          >
+            <Avatar user={me} size={30} />
+            {!collapsed && (
+              <div className="min-w-0 flex-1 leading-tight">
+                <div className="truncate text-[13.5px] font-medium text-on-ink">{me?.name}</div>
+                <div className="flex items-center gap-1 text-[12px] text-on-ink-muted">
+                  {auth ? <Cloud className="size-3" /> : <HardDrive className="size-3" />}
+                  {auth ? 'Team sync on' : 'Local mode'}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </button>
           <button
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
             aria-label="Toggle theme"
@@ -273,6 +283,7 @@ export function Sidebar() {
       />
       <TemplateModal workspaceId={templateFor} onClose={() => setTemplateFor(null)} />
       {auth && <TeamModal open={teamOpen} onClose={() => setTeamOpen(false)} />}
+      <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
     </motion.aside>
   )
 }
@@ -336,6 +347,7 @@ function BoardLink({ id, collapsed }: { id: string; collapsed: boolean }) {
           <span className={cx('size-[7px] shrink-0', active ? 'bg-signal' : 'border border-on-ink-muted')} />
         )}
         {!collapsed && <span className="flex-1 truncate pr-5 text-left">{board.name}</span>}
+        {!collapsed && isPrivate(board) && <Lock aria-label="Private" className="pointer-events-none absolute right-2.5 top-2.5 size-3 text-on-ink-muted group-hover:opacity-0" />}
       </button>
       {!collapsed && (
         <button

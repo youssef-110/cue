@@ -111,7 +111,10 @@ if (env.VITE_FIREBASE_EMULATOR && auth && db) {
  * Activity is capped to the newest rows and notifications are scoped to you,
  * which keeps daily reads well inside the free quota.
  */
-export function cloudAdapter(fs: Firestore, uid: string): Adapter {
+// Board-scoped kinds: non-admins only ask for what they may read (rules reject broader queries).
+const SCOPED: Kind[] = ['board', 'item', 'update', 'activity', 'doc']
+
+export function cloudAdapter(fs: Firestore, uid: string, admin = false): Adapter {
   const report = (e: unknown) => {
     console.error('Cue sync error', e)
     window.dispatchEvent(new CustomEvent('tideline:sync-error', { detail: (e as Error).message }))
@@ -119,9 +122,10 @@ export function cloudAdapter(fs: Firestore, uid: string): Adapter {
   const queries = (): [Kind, Query][] =>
     KINDS.map((kind) => {
       const c = collection(fs, kind)
-      if (kind === 'activity') return [kind, query(c, orderBy('at', 'desc'), limit(400))]
+      const mine = admin || !SCOPED.includes(kind) ? [] : [where('readers', 'array-contains-any', ['*', uid])]
+      if (kind === 'activity') return [kind, query(c, ...mine, orderBy('at', 'desc'), limit(400))]
       if (kind === 'notification') return [kind, query(c, where('userId', '==', uid))]
-      return [kind, c]
+      return [kind, query(c, ...mine)]
     })
   return {
     mode: 'cloud',

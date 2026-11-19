@@ -66,8 +66,34 @@ service cloud.firestore {
     }
 
     // ---------- shared team work ----------
+    // Boards and everything on them carry `readers`: ['*'] for the whole team, otherwise
+    // the user ids a private board is shared with. Admins can open every board.
+    // Readers only change through the team server, which restamps a board's documents together.
+    function isAdmin() {
+      return isMember() && role() == 'admin';
+    }
+    function canSee(d) {
+      return isAdmin() || d.readers.hasAny(['*', uid()]);
+    }
+    function boardOf(d) {
+      return get(/databases/$(database)/documents/board/$(d.boardId)).data;
+    }
+    // a new or moved document must carry exactly its board's readers (docs without a board are public)
+    function stampedLikeBoard() {
+      let d = request.resource.data;
+      return d.get('boardId', null) == null
+        ? d.readers == ['*']
+        : d.readers == boardOf(d).readers;
+    }
+    function readersKept() {
+      return keeps('readers') && keeps('boardId');
+    }
+
     match /{kind}/{id} {
-      allow read: if isMember() && kind in ['workspace', 'board', 'item', 'update', 'user', 'activity', 'doc', 'dashboard'];
+      allow read: if isMember() && (
+        kind in ['workspace', 'user', 'dashboard']
+        || (kind in ['board', 'item', 'update', 'activity', 'doc'] && canSee(resource.data))
+      );
     }
     match /workspace/{id} {
       allow create: if canEdit() && idMatches(id);
@@ -75,19 +101,19 @@ service cloud.firestore {
       allow delete: if canEdit();
     }
     match /board/{id} {
-      allow create: if canEdit() && idMatches(id);
-      allow update: if canEdit() && keepsOwnership();
-      allow delete: if canEdit();
+      allow create: if canEdit() && idMatches(id) && request.resource.data.readers == ['*'];
+      allow update: if canEdit() && keepsOwnership() && canSee(resource.data) && keeps('readers');
+      allow delete: if canEdit() && canSee(resource.data);
     }
     match /item/{id} {
-      allow create: if canEdit() && idMatches(id);
-      allow update: if canEdit() && keepsOwnership();
-      allow delete: if canEdit();
+      allow create: if canEdit() && idMatches(id) && stampedLikeBoard() && canSee(request.resource.data);
+      allow update: if canEdit() && keepsOwnership() && canSee(resource.data) && (readersKept() || (stampedLikeBoard() && canSee(request.resource.data)));
+      allow delete: if canEdit() && canSee(resource.data);
     }
     match /doc/{id} {
-      allow create: if canEdit() && idMatches(id);
-      allow update: if canEdit() && keepsOwnership();
-      allow delete: if canEdit();
+      allow create: if canEdit() && idMatches(id) && stampedLikeBoard() && canSee(request.resource.data);
+      allow update: if canEdit() && keepsOwnership() && canSee(resource.data) && readersKept();
+      allow delete: if canEdit() && canSee(resource.data);
     }
     match /dashboard/{id} {
       allow create: if canEdit() && idMatches(id);
@@ -103,8 +129,8 @@ service cloud.firestore {
 
     // comments: written as yourself; others may only add/remove their own like
     match /update/{id} {
-      allow create: if isMember() && idMatches(id) && request.resource.data.authorId == uid();
-      allow update: if isMember() && keepsOwnership()
+      allow create: if isMember() && idMatches(id) && request.resource.data.authorId == uid() && stampedLikeBoard() && canSee(request.resource.data);
+      allow update: if isMember() && keepsOwnership() && canSee(resource.data) && readersKept()
         && (resource.data.authorId == uid() || onlyMyLikeChanged());
       allow delete: if isMember() && resource.data.authorId == uid();
 
@@ -121,7 +147,7 @@ service cloud.firestore {
 
     // activity log: append-only, written as yourself
     match /activity/{id} {
-      allow create: if isMember() && idMatches(id) && request.resource.data.actorId == uid();
+      allow create: if isMember() && idMatches(id) && request.resource.data.actorId == uid() && stampedLikeBoard() && canSee(request.resource.data);
     }
 
     // notifications: sent as yourself; only recipient or sender can read / mark read

@@ -2,10 +2,10 @@ import { Suspense, lazy, useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { Toaster, toast } from 'sonner'
 import { useShallow } from 'zustand/react/shallow'
-import { checkDateAutomations, init, openItem, setPalette, setTheme, undo, useStore } from './lib/store'
+import { checkDateAutomations, init, openItem, setNotifyHook, setPalette, setTheme, undo, useStore } from './lib/store'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
 import { auth, cloudAdapter, db, localAdapter } from './lib/sync'
-import { checkAccess, watchMyMembership } from './lib/team'
+import { checkAccess, emailNotifications, watchMyMembership } from './lib/team'
 import { Sidebar } from './components/Sidebar'
 import { ItemPanel } from './components/ItemPanel'
 import { CommandPalette } from './components/CommandPalette'
@@ -48,12 +48,15 @@ export default function App() {
         if (access.kind !== 'member') return setSession(access.kind)
         if (access.member.mustChangePassword) return setSession('password')
         useStore.setState({ isAdmin: access.member.role === 'admin', role: access.member.role })
-        if (!useStore.getState().ready) await init(cloudAdapter(db!, u.uid), u.uid)
+        if (!useStore.getState().ready) await init(cloudAdapter(db!, u.uid, access.member.role === 'admin'), u.uid)
+        setNotifyHook((ids) => void emailNotifications(ids).catch(() => undefined)) // best effort: in-app inbox is the source of truth
         setSession('in')
         // role changes by an admin apply live; removal signs this person out
         unwatch = watchMyMembership(u.uid, (m) => {
           if (!m) return void signOut(auth!).then(() => location.reload())
           if (m.role === useStore.getState().role) return
+          // admins load every board; others only boards shared with them, so a switch needs a fresh load
+          if ((m.role === 'admin') !== useStore.getState().isAdmin) return location.reload()
           useStore.setState({ isAdmin: m.role === 'admin', role: m.role })
           toast(`Your role is now ${ROLE_LABEL[m.role]}`)
         })

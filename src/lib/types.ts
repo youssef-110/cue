@@ -120,6 +120,9 @@ export interface Automation {
   lastPeriod?: string // recurring: last period that already created its item
 }
 
+/** Who can read a board and everything on it: ['*'] = the whole team, otherwise these user ids (admins always can). */
+export type Readers = string[]
+
 export interface Board {
   id: string
   workspaceId: string
@@ -131,10 +134,12 @@ export interface Board {
   views: View[]
   automations: Automation[]
   createdAt: number
+  createdBy?: string
   order: number
   archived?: boolean
   archivedAt?: number
   deletedAt?: number // soft delete: in Trash, restorable for 30 days
+  readers?: Readers
 }
 
 // Cell values by column type:
@@ -151,6 +156,7 @@ export interface Item {
   boardId: string
   groupId: string
   parentId?: string // subitem
+  readers?: Readers
   name: string
   values: Record<string, CellValue>
   order: number
@@ -173,6 +179,7 @@ export interface Update {
   createdAt: number
   likes: string[]
   parentId?: string // a reply to another update
+  readers?: Readers
 }
 
 export interface Activity {
@@ -182,6 +189,7 @@ export interface Activity {
   actorId: string
   text: string
   at: number
+  readers?: Readers
 }
 
 export interface Notification {
@@ -193,6 +201,7 @@ export interface Notification {
   itemId?: string
   read: boolean
   at: number
+  emailedAt?: number // set by the team server once the email went out
 }
 
 export interface User {
@@ -203,6 +212,7 @@ export interface User {
   color: string
   title?: string
   removedAt?: unknown // set by the team server when an admin removes the login
+  emailNotify?: boolean // email me my notifications (to `email`)
 }
 
 export interface Workspace {
@@ -243,6 +253,7 @@ export interface Doc {
   body: string
   createdBy: string
   updatedAt: number
+  readers?: Readers
 }
 
 export interface Docs {

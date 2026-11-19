@@ -83,8 +83,24 @@ const blocked = (kind: Kind) => get().role === 'viewer' && !VIEWER_KINDS.include
 export const canEdit = () => get().role !== 'viewer'
 export const useCanEdit = () => useStore((s) => s.role !== 'viewer')
 
-export function put<K extends Kind>(kind: K, doc: Docs[K]) {
+// Everything on a board carries the board's readers, so the database can keep private boards private.
+export const PUBLIC: string[] = ['*']
+const STAMPED: Kind[] = ['item', 'update', 'activity', 'doc']
+export const boardReaders = (boardId?: string) => (boardId && get().board[boardId]?.readers) || PUBLIC
+export const isPrivate = (b?: Board) => !!b?.readers && !b.readers.includes('*')
+export const canSeeBoard = (boardId: string | undefined, userId: string) => {
+  const r = boardReaders(boardId)
+  return r.includes('*') || r.includes(userId)
+}
+function stamp<K extends Kind>(kind: K, doc: Docs[K]): Docs[K] {
+  if (kind === 'board') return (doc as Board).readers ? doc : { ...doc, readers: PUBLIC }
+  if (STAMPED.includes(kind)) return { ...doc, readers: boardReaders((doc as { boardId?: string }).boardId) }
+  return doc
+}
+
+export function put<K extends Kind>(kind: K, raw: Docs[K]) {
   if (blocked(kind)) return
+  const doc = stamp(kind, raw)
   set((s) => ({ [kind]: { ...s[kind], [doc.id]: doc } }) as Partial<State>)
   get().adapter?.put(kind, doc)
 }
@@ -159,8 +175,18 @@ function log(boardId: string, text: string, itemId?: string) {
 }
 export function notify(userId: string, text: string, boardId?: string, itemId?: string) {
   if (!userId || userId === get().meId) return
-  put('notification', { id: uid('n_'), userId, actorId: get().meId, text, boardId, itemId, read: false, at: Date.now() })
+  if (!canSeeBoard(boardId, userId)) return // never leak a private board's items
+  const id = uid('n_')
+  put('notification', { id, userId, actorId: get().meId, text, boardId, itemId, read: false, at: Date.now() })
+  emailQueue.push(id)
+  clearTimeout(emailTimer)
+  emailTimer = setTimeout(() => onNotify?.(emailQueue.splice(0)), 1500)
 }
+// team mode wires this to the email sender; batched so a burst of changes is one request
+const emailQueue: string[] = []
+let emailTimer: ReturnType<typeof setTimeout> | undefined
+let onNotify: ((ids: string[]) => void) | undefined
+export const setNotifyHook = (fn: (ids: string[]) => void) => (onNotify = fn)
 
 // ---------- workspaces & boards ----------
 export function createWorkspace(name: string) {
@@ -173,12 +199,33 @@ export function createBoardFromTemplate(templateId: string, workspaceId: string,
   const t = TEMPLATES.find((x) => x.id === templateId) ?? TEMPLATES[TEMPLATES.length - 1]
   const { board, items } = t.build(workspaceId, people)
   if (name) board.name = name
+  board.createdBy = get().meId
   put('board', board)
   if (!auth) items.forEach((it) => put('item', it)) // example items only in local mode; team boards start empty
   log(board.id, `created board “${board.name}”`)
   navigate({ page: 'board', boardId: board.id })
   return board
 }
+/** Make a board private to some people (always including you), or open it to the whole team. */
+export async function setBoardAccess(boardId: string, readers: string[], server?: (boardId: string, readers: string[]) => Promise<unknown>) {
+  const b = get().board[boardId]
+  if (!b) return
+  const next = readers.includes('*') ? PUBLIC : [...new Set([get().meId, ...readers])]
+  if (server) return void (await server(boardId, next)) // the snapshot listener brings the restamped docs back
+  set((s) => {
+    const patch: Partial<State> = { board: { ...s.board, [boardId]: { ...b, readers: next } } }
+    for (const k of STAMPED) {
+      const all = { ...(s[k] as Record<string, { boardId?: string }>) }
+      for (const [id, d] of Object.entries(all)) if (d.boardId === boardId) all[id] = { ...d, readers: next } as never
+      ;(patch as Record<string, unknown>)[k] = all
+    }
+    return patch
+  })
+  const s = get()
+  s.adapter?.put('board', s.board[boardId])
+  for (const k of STAMPED) Object.values(s[k] as Record<string, Docs[typeof k] & { boardId?: string }>).filter((d) => d.boardId === boardId).forEach((d) => s.adapter?.put(k, d))
+}
+
 export function updateBoard(id: string, patch: Partial<Board>) {
   const b = get().board[id]
   if (b) put('board', { ...b, ...patch })
@@ -215,7 +262,7 @@ export function duplicateBoard(id: string) {
   const b = get().board[id]
   if (!b) return
   const groupMap = new Map(b.groups.map((g) => [g.id, uid('g_')]))
-  const copy: Board = { ...structuredClone(b), id: uid('b_'), name: b.name + ' (copy)', createdAt: Date.now(), order: Date.now() }
+  const copy: Board = { ...structuredClone(b), id: uid('b_'), name: b.name + ' (copy)', createdAt: Date.now(), createdBy: get().meId, order: Date.now() }
   copy.groups = copy.groups.map((g) => ({ ...g, id: groupMap.get(g.id)! }))
   copy.views = copy.views.map((v) => ({ ...v, id: uid('v_') }))
   put('board', copy)

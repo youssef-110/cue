@@ -27,6 +27,11 @@ function steps(kind: TourKind, name: string, viewer: boolean): Step[] {
       title: 'Working on an item',
       body: 'Click an item to open it. Post updates there and @mention a teammate to notify them. On a board, N adds an item and / searches it.',
     },
+    {
+      target: 'profile',
+      title: 'Your profile',
+      body: 'Click your name to change your colour and title, and to add your email if you want your notifications by email too.',
+    },
     { target: 'help', title: 'Help is always here', body: 'The guide covers every column, view and automation, and what each role can do. You can replay this tour from it.' },
   ]
   if (kind === 'admin')

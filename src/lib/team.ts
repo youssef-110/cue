@@ -65,6 +65,12 @@ export const watchMyMembership = (uid: string, cb: (m: Member | null) => void) =
     (e) => e.code === 'permission-denied' && cb(null), // other errors are transient: keep the session
   )
 
+/** Ask the team server to email these notifications (it checks each recipient's settings). */
+export const emailNotifications = (ids: string[]) => (ids.length ? call<{ sent: number }>({ action: 'notify', ids }) : Promise.resolve({ sent: 0 }))
+export const sendTestEmail = () => call<{ to: string }>({ action: 'test' })
+/** Restamp a board and everything on it with new readers (server side, so nothing is missed). */
+export const saveBoardAccess = (boardId: string, readers: string[]) => call({ action: 'access', boardId, readers })
+
 export const clearPasswordFlag = () => updateDoc(doc(db!, 'members', auth!.currentUser!.uid), { mustChangePassword: false })
 
 // ---------- admin server (creates accounts, resets passwords) ----------

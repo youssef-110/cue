@@ -1,13 +1,15 @@
-// Admin-only team management for Cue, deployed as a Vercel serverless function.
-// Browsers cannot create accounts or change another user's password, so the
-// admin's Team screen calls this endpoint with their Firebase ID token.
+// Cue's team server, deployed as a Vercel serverless function. Callers send their Firebase ID token.
+// Admins: create logins, reset passwords, change roles, remove people (browsers can't touch other accounts).
+// Members: change who can see a board (restamps every document on it), send notification emails.
 // Keyless: Vercel's per-request OIDC token is exchanged for Google credentials via
 // workload identity federation (pool "vercel" -> service account cue-team-api). No key file exists.
-// Env: ALLOWED_ORIGINS (comma list).
+// Env: ALLOWED_ORIGINS (comma list). Email (optional): SMTP_USER + SMTP_PASS (a Gmail address and an app
+// password work), SMTP_HOST (default smtp.gmail.com), SMTP_PORT (default 465), APP_URL (link in emails).
 import { writeFileSync } from 'node:fs'
 import { applicationDefault, getApps, initializeApp } from 'firebase-admin/app'
 import { getAuth } from 'firebase-admin/auth'
-import { FieldValue, getFirestore } from 'firebase-admin/firestore'
+import { FieldValue, getFirestore, type Firestore } from 'firebase-admin/firestore'
+import nodemailer from 'nodemailer'
 
 type Req = { method?: string; headers: Record<string, string | string[] | undefined>; body?: unknown }
 type Res = { status(code: number): Res; json(body: unknown): void; setHeader(k: string, v: string): void; end(): void }
@@ -60,6 +62,58 @@ const str = (v: unknown, name: string, max = 200) => (typeof v === 'string' && v
 const password = (v: unknown) => (typeof v === 'string' && v.length >= 8 && v.length <= 128 ? v : fail(400, 'Password must be 8 to 128 characters'))
 const role = (v: unknown) => ((ROLES as readonly string[]).includes(v as string) ? (v as (typeof ROLES)[number]) : fail(400, 'Invalid role'))
 
+// ---------- email ----------
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const APP_URL = process.env.APP_URL || 'https://youssef-110.github.io/tideline/app.html'
+const esc = (t: string) => t.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
+let mailer: nodemailer.Transporter | null = null
+function mail() {
+  const user = process.env.SMTP_USER
+  const pass = process.env.SMTP_PASS
+  if (!user || !pass) fail(503, 'Email is not set up on the team server yet. Ask your admin.')
+  mailer ??= nodemailer.createTransport({
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: Number(process.env.SMTP_PORT || 465),
+    secure: Number(process.env.SMTP_PORT || 465) === 465,
+    auth: { user, pass },
+  })
+  return { mailer, from: `"Cue" <${user}>` }
+}
+function render(headline: string, body: string, link: string) {
+  const html = `<!doctype html><html><body style="margin:0;background:#f4f3ee;font-family:Helvetica,Arial,sans-serif;color:#121212">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px 12px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border:1px solid #e3e2db">
+<tr><td style="background:#f6d11f;padding:14px 20px;font-weight:700;font-size:18px;letter-spacing:.08em">CUE</td></tr>
+<tr><td style="padding:22px 20px 8px;font-size:17px;font-weight:700;line-height:1.35">${esc(headline)}</td></tr>
+<tr><td style="padding:0 20px 18px;font-size:15px;line-height:1.5;color:#55554f">${esc(body)}</td></tr>
+<tr><td style="padding:0 20px 24px"><a href="${esc(link)}" style="display:inline-block;background:#121212;color:#f4f3ee;text-decoration:none;font-weight:700;font-size:14px;padding:10px 16px;border-radius:4px">Open in Cue</a></td></tr>
+<tr><td style="border-top:1px solid #e3e2db;padding:12px 20px;font-size:12px;color:#74746e">You get these because email notifications are on in your Cue profile. Click your name in Cue to turn them off.</td></tr>
+</table></td></tr></table></body></html>`
+  return { html, text: `${headline}\n\n${body}\n\nOpen in Cue: ${link}\n\nTurn these off from your profile in Cue.` }
+}
+const canSeeBoard = (readers: unknown, uid: string, admin: boolean) => admin || !Array.isArray(readers) || readers.includes('*') || readers.includes(uid)
+
+/** Restamp a board and every document on it with new readers. */
+async function restamp(db: Firestore, boardId: string, readers: string[]) {
+  let batch = db.batch()
+  let n = 0
+  const flush = async () => {
+    if (n) await batch.commit()
+    batch = db.batch()
+    n = 0
+  }
+  batch.update(db.doc(`board/${boardId}`), { readers })
+  n++
+  for (const kind of ['item', 'update', 'activity', 'doc']) {
+    const snap = await db.collection(kind).where('boardId', '==', boardId).get()
+    for (const d of snap.docs) {
+      batch.update(d.ref, { readers })
+      if (++n >= 450) await flush()
+    }
+  }
+  await flush()
+}
+
 export default async function handler(req: Req, res: Res) {
   const origin = String(req.headers.origin ?? '')
   const allowed = (process.env.ALLOWED_ORIGINS ?? '').split(',').map((s) => s.trim()).filter(Boolean)
@@ -77,14 +131,17 @@ export default async function handler(req: Req, res: Res) {
     const auth = getAuth(a)
     const db = getFirestore(a)
 
-    // caller must be a signed-in admin
+    // caller must be signed in and on the team; team management needs an admin
     const token = String(req.headers.authorization ?? '').replace(/^Bearer /, '')
     if (!token) fail(401, 'Not signed in')
     const caller = await auth.verifyIdToken(token).catch(() => fail(401, 'Your session expired. Sign in again.'))
     const me = await db.doc(`members/${caller.uid}`).get()
-    if (!me.exists || me.get('role') !== 'admin') fail(403, 'Only admins can manage the team')
+    if (!me.exists) fail(403, 'You are not on this team')
+    const callerRole = me.get('role') as string
+    const isAdmin = callerRole === 'admin'
 
     const body = (typeof req.body === 'string' ? JSON.parse(req.body) : req.body ?? {}) as Record<string, unknown>
+    if (['create', 'reset', 'role', 'remove'].includes(String(body.action)) && !isAdmin) fail(403, 'Only admins can manage the team')
     const target = () => {
       const uid = str(body.uid, 'person', 128)
       if (uid === caller.uid) fail(400, 'You cannot change your own access here')
@@ -125,6 +182,57 @@ export default async function handler(req: Req, res: Res) {
         // keep their profile so their name still shows on old items
         await db.doc(`user/${uid}`).set({ removedAt: FieldValue.serverTimestamp() }, { merge: true })
         return res.status(200).json({ ok: true })
+      }
+      case 'access': {
+        if (callerRole === 'viewer') fail(403, 'Viewers cannot change boards')
+        const boardId = str(body.boardId, 'board', 64)
+        const board = await db.doc(`board/${boardId}`).get()
+        if (!board.exists || !canSeeBoard(board.get('readers'), caller.uid, isAdmin)) fail(404, 'Board not found')
+        const owner = board.get('createdBy') as string | undefined
+        if (owner && owner !== caller.uid && !isAdmin) fail(403, 'Only the person who made this board, or an admin, can change who sees it')
+        const list = Array.isArray(body.readers) ? (body.readers as unknown[]).filter((x): x is string => typeof x === 'string').slice(0, 100) : fail(400, 'Invalid people')
+        let readers = ['*']
+        if (!list.includes('*')) {
+          const uids = [...new Set([caller.uid, ...list])]
+          const found = await db.getAll(...uids.map((u) => db.doc(`members/${u}`)))
+          readers = found.filter((d) => d.exists).map((d) => d.id)
+        }
+        await restamp(db, boardId, readers)
+        return res.status(200).json({ readers })
+      }
+      case 'notify': {
+        const ids = Array.isArray(body.ids) ? (body.ids as unknown[]).filter((x): x is string => typeof x === 'string' && /^n_[\w-]{4,40}$/.test(x)).slice(0, 25) : []
+        if (!ids.length) return res.status(200).json({ sent: 0 })
+        const { mailer: m, from } = mail()
+        const actor = (await db.doc(`user/${caller.uid}`).get()).get('name') ?? 'A teammate'
+        let sent = 0
+        for (const snap of await db.getAll(...ids.map((id) => db.doc(`notification/${id}`)))) {
+          const n = snap.data()
+          // only the sender may trigger, once, and only for something that just happened
+          if (!n || n.actorId !== caller.uid || n.emailedAt || Date.now() - Number(n.at) > 15 * 60_000) continue
+          const [profile, member] = await db.getAll(db.doc(`user/${n.userId}`), db.doc(`members/${n.userId}`))
+          const to = profile.get('email') as string | undefined
+          if (!member.exists || !profile.get('emailNotify') || !to || !EMAIL_RE.test(to)) continue
+          if (n.boardId) {
+            const b = await db.doc(`board/${n.boardId}`).get()
+            if (b.exists && !canSeeBoard(b.get('readers'), n.userId, member.get('role') === 'admin')) continue
+          }
+          const link = n.boardId ? `${APP_URL}#/board/${encodeURIComponent(n.boardId)}` : APP_URL
+          const headline = `${actor} ${n.text}`.slice(0, 160)
+          const { html, text } = render(headline, 'Open Cue to see the item and reply.', link)
+          await m.sendMail({ from, to, subject: headline, html, text })
+          await snap.ref.update({ emailedAt: Date.now() })
+          sent++
+        }
+        return res.status(200).json({ sent })
+      }
+      case 'test': {
+        const to = (await db.doc(`user/${caller.uid}`).get()).get('email') as string | undefined
+        if (!to || !EMAIL_RE.test(to)) fail(400, 'Add your email to your profile first')
+        const { mailer: m, from } = mail()
+        const { html, text } = render('Email notifications are working', 'You will get an email when someone assigns you, mentions you or replies to you in Cue.', APP_URL)
+        await m.sendMail({ from, to, subject: 'Cue: email notifications are on', html, text }).catch((e: Error) => fail(502, 'The mail server refused the message: ' + e.message.slice(0, 120)))
+        return res.status(200).json({ to })
       }
       default:
         fail(400, 'Unknown action')

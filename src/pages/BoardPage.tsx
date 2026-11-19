@@ -25,9 +25,10 @@ import {
   LayoutGrid,
   ClipboardList,
   Paperclip,
+  Lock,
 } from 'lucide-react'
 import { format, formatDistanceToNow } from 'date-fns'
-import { addItem, addView, archiveBoard, deleteBoard, duplicateBoard, isLive, labelOf, liveGroups, navigate, openItem, updateBoard, useCanEdit, useStore, visibleItem } from '../lib/store'
+import { addItem, addView, archiveBoard, deleteBoard, duplicateBoard, isLive, labelOf, liveGroups, navigate, openItem, updateBoard, useCanEdit, useStore, visibleItem, isPrivate } from '../lib/store'
 import { matchFilter, useViewSetting } from '../lib/filters'
 import { FilterBuilder } from '../components/FilterBuilder'
 import { BoardDoc } from './DocPage'
@@ -37,6 +38,7 @@ import type { Board, View } from '../lib/types'
 import { Avatar, AvatarStack, Button, EditableText, MenuItem, Popover, cx } from '../components/ui'
 import { isDelayed, isDoneItem } from '../components/cells'
 import { Automations } from '../components/Automations'
+import { BoardAccess } from '../components/BoardAccess'
 import { askText } from '../components/askText'
 import { TableView } from '../views/TableView'
 import { KanbanView } from '../views/KanbanView'
@@ -177,6 +179,11 @@ export function BoardPage({ boardId, viewId }: { boardId: string; viewId?: strin
               <span aria-hidden className="hidden text-on-signal/60 sm:inline">/</span>
               <span aria-current="page" className="truncate">{board.name}</span>
             </nav>
+            {isPrivate(board) && (
+              <span title="Private board: only the people it is shared with can see it" className="flex shrink-0 items-center gap-1 rounded-sm border border-on-signal/60 px-1.5 py-0.5 text-[11px] tracking-[0.12em]">
+                <Lock className="size-3" /> Private
+              </span>
+            )}
             {!editable && (
               <span className="ml-1 flex shrink-0 items-center gap-1 rounded-sm border border-on-signal/40 px-1.5 py-0.5 text-[11.5px]">
                 <Eye className="size-3.5" /> View only
@@ -480,12 +487,17 @@ function BoardMenu({ boardId }: { boardId: string }) {
   const ref = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
   const board = useStore((s) => s.board[boardId])
+  const [accessOpen, setAccessOpen] = useState(false)
   return (
     <>
+      <BoardAccess board={board} open={accessOpen} onClose={() => setAccessOpen(false)} />
       <button ref={ref} onClick={() => setOpen(true)} aria-label="Board menu" title="Board menu" className={BAND_ICON}>
         <MoreHorizontal />
       </button>
       <Popover anchor={ref.current} open={open} onClose={() => setOpen(false)} width={210} align="end">
+        <MenuItem icon={<Lock />} onClick={() => (setOpen(false), setAccessOpen(true))}>
+          Board access{isPrivate(board) ? ': private' : ''}
+        </MenuItem>
         <MenuItem icon={<Download />} onClick={() => (exportBoardCSV(board), setOpen(false))}>Export to CSV</MenuItem>
         <MenuItem icon={<Copy />} onClick={() => (duplicateBoard(boardId), setOpen(false))}>Duplicate board</MenuItem>
         <MenuItem icon={<Archive />} onClick={() => (setOpen(false), archiveBoard(boardId))}>Archive board</MenuItem>

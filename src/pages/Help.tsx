@@ -125,6 +125,10 @@ const SECTIONS: Section[] = [
         </P>
         <P>Click <B>Reply</B> under an update to answer it in a thread. The person who wrote it is notified.</P>
         <P>
+          <B>Email notifications:</B> click your name at the bottom of the left rail, add your email and tick <B>Email me my notifications</B>. Use <B>Send a test
+          email</B> to check it arrives. The Inbox still gets everything.
+        </P>
+        <P>
           <B>My work</B> lists everything assigned to you on any board, grouped by Overdue, Today, This week, Next week, Later and No date. It is the best place to start the day.
         </P>
       </>
@@ -175,6 +179,19 @@ const SECTIONS: Section[] = [
           picks column types from the values (dates, numbers, statuses). Export any board to CSV from its menu.
         </P>
         <P>Imported data stays inside the team’s private database. Nothing goes into the public code repository.</P>
+      </>
+    ),
+  },
+  {
+    id: 'private',
+    title: 'Private boards',
+    body: (
+      <>
+        <P>
+          Open a board’s <B>⋯</B> menu and choose <B>Board access</B>. Pick <B>Private</B> and tick the people who should see it. Everyone else won’t see the
+          board, its items, updates, docs or activity anywhere in Cue, including search, My work and dashboards. The database enforces this, not just the screen.
+        </P>
+        <P>Admins can always open private boards. Only the person who made the board, or an admin, can change who sees it. Private boards show a lock in the left rail.</P>
       </>
     ),
   },
