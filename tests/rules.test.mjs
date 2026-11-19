@@ -10,7 +10,7 @@ const user = (uid, email, verified = true) => env.authenticatedContext(uid, { em
 before(async () => {
   env = await initializeTestEnvironment({
     projectId: 'tideline-test',
-    firestore: { rules: readFileSync('firestore.rules', 'utf8'), host: '127.0.0.1', port: 8085 },
+    firestore: { rules: readFileSync('firestore.rules', 'utf8').replace('__OWNER_EMAIL__', 'ada@team.io'), host: '127.0.0.1', port: 8085 },
   })
 })
 after(() => env.cleanup())
@@ -18,7 +18,7 @@ beforeEach(async () => {
   await env.clearFirestore()
   await env.withSecurityRulesDisabled(async (ctx) => {
     const db = ctx.firestore()
-    await setDoc(doc(db, 'meta/setup'), { owner: 'ada@team.io' })
+    await setDoc(doc(db, 'meta/setup'), { at: 1 })
     await setDoc(doc(db, 'members/ada@team.io'), { email: 'ada@team.io', role: 'admin', addedBy: 'ada@team.io', addedAt: 1 })
     await setDoc(doc(db, 'members/bo@team.io'), { email: 'bo@team.io', role: 'member', addedBy: 'ada@team.io', addedAt: 2 })
     await setDoc(doc(db, 'item/i1'), { id: 'i1', name: 'Task', createdBy: 'ada', values: {} })
@@ -55,17 +55,25 @@ test('only admins manage the team, never themselves', async () => {
   await assertFails(getDoc(doc(bo(), 'item/i1'))) // removed member loses access
 })
 
-test('workspace can be claimed only once', async () => {
-  const claim = () => {
-    const db = eve()
+test('only the configured owner can claim a fresh workspace, once', async () => {
+  const claim = (db, email) => {
     const b = writeBatch(db)
-    b.set(doc(db, 'members/eve@evil.io'), { email: 'eve@evil.io', role: 'admin', addedBy: 'eve@evil.io', addedAt: 9 })
-    b.set(doc(db, 'meta/setup'), { owner: 'eve@evil.io' })
+    b.set(doc(db, `members/${email}`), { email, role: 'admin', addedBy: email, addedAt: 9 })
+    b.set(doc(db, 'meta/setup'), { at: 9 })
     return b.commit()
   }
-  await assertFails(claim()) // already set up
-  await env.withSecurityRulesDisabled((ctx) => deleteDoc(doc(ctx.firestore(), 'meta/setup')))
-  await assertSucceeds(claim()) // fresh workspace: first verified user becomes admin
+  await assertFails(claim(ada(), 'ada@team.io')) // already set up
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await deleteDoc(doc(ctx.firestore(), 'meta/setup'))
+    await deleteDoc(doc(ctx.firestore(), 'members/ada@team.io'))
+  })
+  await assertFails(claim(eve(), 'eve@evil.io')) // a stranger can't take a fresh workspace
+  const db = ada()
+  const b = writeBatch(db)
+  b.set(doc(db, 'members/ada@team.io'), { email: 'ada@team.io', role: 'admin', addedBy: 'ada@team.io', addedAt: 9 })
+  b.set(doc(db, 'meta/setup'), { at: 9, owner: 'ada@team.io' })
+  await assertFails(b.commit()) // the setup flag may not carry personal data
+  await assertSucceeds(claim(ada(), 'ada@team.io'))
 })
 
 test('comments: only the author edits, others toggle only their own like', async () => {

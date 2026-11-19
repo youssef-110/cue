@@ -24,6 +24,11 @@ service cloud.firestore {
     function uid() {
       return request.auth.uid;
     }
+    // The only email allowed to claim a fresh workspace. Filled in at deploy
+    // time by scripts/build-rules.mjs, so it never lives in the repository.
+    function ownerEmail() {
+      return '__OWNER_EMAIL__';
+    }
     // ownership fields must never be rewritten
     function keeps(field) {
       return request.resource.data.get(field, null) == resource.data.get(field, null);
@@ -37,18 +42,19 @@ service cloud.firestore {
     }
 
     // ---------- workspace setup & team ----------
+    // existence flag only (no personal data): "has this workspace been claimed?"
     match /meta/setup {
       allow read: if signedIn();
-      // created once, in the same batch as the first admin's member row
-      allow create: if signedIn()
-        && request.resource.data.owner == me()
+      // created once, in the same batch as the owner's admin member row
+      allow create: if signedIn() && me() == ownerEmail()
+        && request.resource.data.keys().hasOnly(['at'])
         && getAfter(memberDoc()).data.role == 'admin';
     }
 
     match /members/{email} {
       allow read: if isMember() || (signedIn() && email == me());
       allow create: if (isAdmin() && validMember(email))
-        || (signedIn() && email == me() && request.resource.data.role == 'admin'
+        || (signedIn() && email == me() && me() == ownerEmail() && request.resource.data.role == 'admin'
             && !exists(/databases/$(database)/documents/meta/setup)
             && existsAfter(/databases/$(database)/documents/meta/setup));
       allow update: if isAdmin() && validMember(email) && email != me();

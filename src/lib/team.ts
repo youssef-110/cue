@@ -28,12 +28,12 @@ export async function checkAccess(): Promise<Access> {
   return setup.exists() ? 'denied' : 'claim'
 }
 
-/** First person to sign in to an empty workspace becomes its admin (rules allow this exactly once). */
+/** The owner email baked into the deployed rules claims an empty workspace once and becomes admin. */
 export async function claimWorkspace() {
   const email = myEmail()
   const b = writeBatch(db!)
   b.set(doc(db!, 'members', email), { email, role: 'admin', addedBy: email, addedAt: Date.now() } satisfies Member)
-  b.set(doc(db!, 'meta', 'setup'), { owner: email, at: Date.now() })
+  b.set(doc(db!, 'meta', 'setup'), { at: Date.now() })
   await b.commit()
 }
 

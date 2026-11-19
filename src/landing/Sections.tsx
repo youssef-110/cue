@@ -410,7 +410,7 @@ const STEPS = [
   {
     title: 'Create a free Firebase project',
     body: 'Turn on Email/Password sign-in, create Firestore, deploy firestore.rules, then claim the workspace. Add teammates from the Team screen.',
-    code: '# .env.production\nVITE_FIREBASE_API_KEY=<key>\nVITE_FIREBASE_PROJECT_ID=<project>\n\nnpx firebase deploy --only firestore:rules',
+    code: '# .env.production\nVITE_FIREBASE_API_KEY=<key>\nVITE_FIREBASE_PROJECT_ID=<project>\n\nTIDELINE_OWNER_EMAIL=you@co.com npm run deploy:rules',
   },
   {
     title: 'Deploy it',

@@ -80,10 +80,11 @@ To share boards with your team in realtime, connect a free Firebase project (Spa
 
    ```bash
    npx firebase login
-   npx firebase deploy --only firestore:rules --project your-project
+   npx firebase use your-project
+   TIDELINE_OWNER_EMAIL=you@company.com npm run deploy:rules
    ```
 
-6. **Claim the workspace.** Open the app, choose **Create account**, verify your email, then press **Claim workspace**. You are now the admin.
+6. **Claim the workspace.** Open the app, choose **Create account** with the owner email from step 5, verify it, then press **Claim workspace**. Only that email can claim a fresh workspace, and only once. You are now the admin.
 7. **Add your team** from the **Team** screen in the sidebar. Each person opens the app, picks **Create account** with the email you added, and verifies it. Remove someone and they lose access immediately.
 
 Access is enforced by [`firestore.rules`](firestore.rules): only verified emails on the team list can read or write, comments and activity are bound to their author, and only admins manage the team. The web config is not a secret; the rules are what protect your data. Test them locally with `npm run test:rules` (needs Java), or run the whole app against local emulators with `npm run emulators` plus a `.env.local` that sets `VITE_FIREBASE_EMULATOR=1`.

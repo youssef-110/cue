@@ -8,8 +8,9 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test:rules": "firebase emulators:exec --only firestore --project tideline-test \"node --test tests/\"",
-    "emulators": "firebase emulators:start --only auth,firestore --project demo-tideline"
+    "test:rules": "node scripts/build-rules.mjs test@example.com && firebase emulators:exec --only firestore --project tideline-test \"node --test tests/\"",
+    "emulators": "node scripts/build-rules.mjs ada@team.test && firebase emulators:start --only auth,firestore --project demo-tideline",
+    "deploy:rules": "node scripts/build-rules.mjs && firebase deploy --only firestore:rules"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
