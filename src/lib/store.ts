@@ -141,6 +141,7 @@ export function bootstrap(me: User, withDemo: boolean) {
   ids.forEach((tid, i) => {
     const { board, items } = TEMPLATES.find((t) => t.id === tid)!.build(ws.id, people)
     board.order = i
+    board.createdBy = me.id
     put('board', board)
     if (withDemo) items.forEach((it) => put('item', it)) // real teams start with an empty board
     first ||= board.id

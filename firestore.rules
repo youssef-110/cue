@@ -101,7 +101,8 @@ service cloud.firestore {
       allow delete: if canEdit();
     }
     match /board/{id} {
-      allow create: if canEdit() && idMatches(id) && request.resource.data.readers == ['*'];
+      // created public, by you; createdBy (who may change access) never changes afterwards
+      allow create: if canEdit() && idMatches(id) && request.resource.data.readers == ['*'] && request.resource.data.createdBy == uid();
       allow update: if canEdit() && keepsOwnership() && canSee(resource.data) && keeps('readers');
       allow delete: if canEdit() && canSee(resource.data);
     }

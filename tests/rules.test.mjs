@@ -138,8 +138,10 @@ test('private boards: only their readers (and admins) see or touch them', async 
   // nobody changes access from the browser: the team server restamps the board's documents together
   await assertFails(updateDoc(doc(bo(), 'board/bp'), { readers: ['*'] }))
   await assertFails(updateDoc(doc(ada(), 'board/b1'), { readers: ['ada'] }))
-  await assertFails(setDoc(doc(bo(), 'board/new'), { id: 'new', name: 'x', readers: ['bo'] }))
-  await assertSucceeds(setDoc(doc(bo(), 'board/new'), { id: 'new', name: 'x', readers: ['*'] }))
+  await assertFails(setDoc(doc(bo(), 'board/new'), { id: 'new', name: 'x', readers: ['bo'], createdBy: 'bo' }))
+  await assertFails(setDoc(doc(bo(), 'board/new'), { id: 'new', name: 'x', readers: ['*'], createdBy: 'ada' })) // can't name someone else the owner
+  await assertSucceeds(setDoc(doc(bo(), 'board/new'), { id: 'new', name: 'x', readers: ['*'], createdBy: 'bo' }))
+  await assertFails(updateDoc(doc(bo(), 'board/new'), { createdBy: 'ada' }))
   await assertSucceeds(updateDoc(doc(bo(), 'board/bp'), { name: 'Still secret' }))
   await assertFails(updateDoc(doc(vi(), 'board/bp'), { name: 'x' }))
 })

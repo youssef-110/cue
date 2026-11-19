@@ -169,6 +169,7 @@ export function importTable(rows: string[][], workspaceId: string, name: string)
     ],
     automations: [],
     createdAt: Date.now(),
+    createdBy: useStore.getState().meId,
     order: Date.now(),
   }
   put('board', board)

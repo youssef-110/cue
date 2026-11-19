@@ -8,8 +8,8 @@ import type { Board } from '../lib/types'
 import { Modal } from './TemplateModal'
 import { Avatar, Button, cx } from './ui'
 
-/** Who may change access: the board's creator, or an admin (older boards without a creator: any editor). */
-export const canManageAccess = (b: Board, meId: string, isAdmin: boolean) => isAdmin || !b.createdBy || b.createdBy === meId
+/** Who may change access: the board's creator, or an admin. */
+export const canManageAccess = (b: Board, meId: string, isAdmin: boolean) => isAdmin || b.createdBy === meId
 
 export function BoardAccess({ board, open, onClose }: { board: Board; open: boolean; onClose: () => void }) {
   const meId = useStore((s) => s.meId)

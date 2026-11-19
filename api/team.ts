@@ -95,23 +95,23 @@ const canSeeBoard = (readers: unknown, uid: string, admin: boolean) => admin || 
 
 /** Restamp a board and every document on it with new readers. */
 async function restamp(db: Firestore, boardId: string, readers: string[]) {
-  let batch = db.batch()
-  let n = 0
-  const flush = async () => {
-    if (n) await batch.commit()
-    batch = db.batch()
-    n = 0
-  }
-  batch.update(db.doc(`board/${boardId}`), { readers })
-  n++
-  for (const kind of ['item', 'update', 'activity', 'doc']) {
-    const snap = await db.collection(kind).where('boardId', '==', boardId).get()
-    for (const d of snap.docs) {
-      batch.update(d.ref, { readers })
-      if (++n >= 450) await flush()
+  // The board goes first: from then on the rules make every new write carry the new readers.
+  await db.doc(`board/${boardId}`).update({ readers })
+  const same = (v: unknown) => Array.isArray(v) && v.length === readers.length && v.every((x, i) => x === readers[i])
+  // Two sweeps: the second catches anything written while the first was running.
+  for (let pass = 0; pass < 2; pass++) {
+    let batch = db.batch()
+    let n = 0
+    for (const kind of ['item', 'update', 'activity', 'doc']) {
+      const snap = await db.collection(kind).where('boardId', '==', boardId).get()
+      for (const d of snap.docs) {
+        if (same(d.get('readers'))) continue
+        batch.update(d.ref, { readers })
+        if (++n >= 450) (await batch.commit(), (batch = db.batch()), (n = 0))
+      }
     }
+    if (n) await batch.commit()
   }
-  await flush()
 }
 
 export default async function handler(req: Req, res: Res) {
@@ -189,7 +189,8 @@ export default async function handler(req: Req, res: Res) {
         const board = await db.doc(`board/${boardId}`).get()
         if (!board.exists || !canSeeBoard(board.get('readers'), caller.uid, isAdmin)) fail(404, 'Board not found')
         const owner = board.get('createdBy') as string | undefined
-        if (owner && owner !== caller.uid && !isAdmin) fail(403, 'Only the person who made this board, or an admin, can change who sees it')
+        // createdBy is set to the creator by the rules and can't change; boards without it are admin-only
+        if (!isAdmin && owner !== caller.uid) fail(403, 'Only the person who made this board, or an admin, can change who sees it')
         const list = Array.isArray(body.readers) ? (body.readers as unknown[]).filter((x): x is string => typeof x === 'string').slice(0, 100) : fail(400, 'Invalid people')
         let readers = ['*']
         if (!list.includes('*')) {
@@ -209,17 +210,21 @@ export default async function handler(req: Req, res: Res) {
         for (const snap of await db.getAll(...ids.map((id) => db.doc(`notification/${id}`)))) {
           const n = snap.data()
           // only the sender may trigger, once, and only for something that just happened
-          if (!n || n.actorId !== caller.uid || n.emailedAt || Date.now() - Number(n.at) > 15 * 60_000) continue
-          const [profile, member] = await db.getAll(db.doc(`user/${n.userId}`), db.doc(`members/${n.userId}`))
+          const age = Date.now() - Number(n?.at)
+          if (!n || n.actorId !== caller.uid || n.emailedAt || !(age >= -60_000 && age <= 15 * 60_000)) continue
+          if (typeof n.itemId !== 'string' || typeof n.boardId !== 'string') continue // email only about real items
+          const [profile, member, item, b] = await db.getAll(db.doc(`user/${n.userId}`), db.doc(`members/${n.userId}`), db.doc(`item/${n.itemId}`), db.doc(`board/${n.boardId}`))
           const to = profile.get('email') as string | undefined
           if (!member.exists || !profile.get('emailNotify') || !to || !EMAIL_RE.test(to)) continue
-          if (n.boardId) {
-            const b = await db.doc(`board/${n.boardId}`).get()
-            if (b.exists && !canSeeBoard(b.get('readers'), n.userId, member.get('role') === 'admin')) continue
-          }
-          const link = n.boardId ? `${APP_URL}#/board/${encodeURIComponent(n.boardId)}` : APP_URL
-          const headline = `${actor} ${n.text}`.slice(0, 160)
-          const { html, text } = render(headline, 'Open Cue to see the item and reply.', link)
+          if (!item.exists || !b.exists || item.get('boardId') !== n.boardId) continue
+          if (!canSeeBoard(b.get('readers'), n.userId, member.get('role') === 'admin')) continue
+          // The wording comes from the server and the stored item, never from the client's notification text,
+          // so the team's mailbox can't be used to send arbitrary messages.
+          const itemName = String(item.get('name') ?? 'an item').slice(0, 120)
+          const boardName = String(b.get('name') ?? 'a board').slice(0, 80)
+          const link = `${APP_URL}#/board/${encodeURIComponent(n.boardId)}`
+          const headline = `${actor} updated “${itemName}”`.slice(0, 160)
+          const { html, text } = render(headline, `There is something new for you on “${itemName}” in ${boardName}. Open Cue to see it and reply.`, link)
           await m.sendMail({ from, to, subject: headline, html, text })
           await snap.ref.update({ emailedAt: Date.now() })
           sent++
