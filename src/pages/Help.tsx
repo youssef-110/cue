@@ -147,10 +147,14 @@ const SECTIONS: Section[] = [
             'When any column, or one chosen column, changes',
             'When a person is assigned',
             'When a date arrives, or a number of days before it',
-            'Every day or every Monday: create an item',
+            'Every day, every weekday (Monday to Friday) or every Monday: create items. Weekday items are dated, so they show on the calendar',
           ]}
         />
         <P>Actions: notify someone, set a status, assign a person, set a date to today, move the item to a group, create an item on another board, duplicate, archive, or clear a column. Switch an automation off with its toggle without deleting it.</P>
+        <P>
+          A schedule can carry a <B>meeting link</B>, such as a Google Meet link. Each item it creates gets the link in a <B>Meeting link</B> column, and the
+          calendar shows a camera button on those items to join the call in one click.
+        </P>
       </>
     ),
   },

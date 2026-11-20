@@ -98,7 +98,7 @@ export type AutomationTrigger =
   | { kind: 'column_changes'; columnId: string } // '' = any column
   | { kind: 'person_assigned'; columnId: string }
   | { kind: 'before_date'; columnId: string; days: number }
-  | { kind: 'recurring'; every: 'day' | 'monday'; groupId: string; name: string } // creates an item, then runs the action on it
+  | { kind: 'recurring'; every: 'day' | 'monday' | 'weekdays'; groupId: string; name: string; link?: string } // creates an item (weekdays: the week's Mon-Fri, dated), then runs the action on it
 
 export type AutomationAction =
   | { kind: 'move_to_group'; groupId: string }

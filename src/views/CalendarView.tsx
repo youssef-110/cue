@@ -14,7 +14,7 @@ import {
   startOfMonth,
   startOfWeek,
 } from 'date-fns'
-import { CalendarDays, ChevronLeft, ChevronRight, Inbox, Plus } from 'lucide-react'
+import { CalendarDays, ChevronLeft, ChevronRight, Inbox, Plus, Video } from 'lucide-react'
 import { addItem, labelOf, openItem, setValue, useCanEdit } from '../lib/store'
 import { inkOn } from '../lib/seed'
 import type { Board, CellValue, Column, Item, View } from '../lib/types'
@@ -31,9 +31,14 @@ const tagStyle = (color?: string) => (color ? { background: color, color: inkOn(
 const TAG = 'block w-full truncate rounded-sm px-1.5 py-[2px] text-left text-[12px] leading-[16px] font-medium'
 const TAG_NONE = 'border border-dashed border-line-strong bg-panel text-fg'
 
+// a video-call link anywhere on the item gets a Join button on its calendar chip
+const CALL = /^https:\/\/(meet\.google\.com|[\w-]+\.zoom\.us|teams\.microsoft\.com|teams\.live\.com)\/\S*$/
+const callLink = (item: Item) => Object.values(item.values).find((v): v is string => typeof v === 'string' && CALL.test(v))
+
 function Chip({ item, color, dim }: { item: Item; color?: string; dim?: boolean }) {
   const { setNodeRef, listeners, isDragging } = useDraggable({ id: item.id })
-  return (
+  const join = callLink(item)
+  const chip = (
     <motion.button
       layout="position"
       initial={{ opacity: 0 }}
@@ -48,6 +53,23 @@ function Chip({ item, color, dim }: { item: Item; color?: string; dim?: boolean 
     >
       {item.name}
     </motion.button>
+  )
+  if (!join) return chip
+  return (
+    <span className="flex items-stretch gap-0.5">
+      <span className="min-w-0 flex-1">{chip}</span>
+      <a
+        href={join}
+        target="_blank"
+        rel="noreferrer noopener"
+        title="Join the call"
+        aria-label={`Join the call for ${item.name}`}
+        onPointerDown={(e) => e.stopPropagation()}
+        className="grid w-5 shrink-0 place-items-center rounded-sm bg-ink text-on-ink hover:bg-ink/85 dark:bg-signal dark:text-on-signal"
+      >
+        <Video className="size-3" />
+      </a>
+    </span>
   )
 }
 

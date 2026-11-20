@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { toast } from 'sonner'
 import { auth, emptySnapshot, type Adapter, type Snapshot } from './sync'
-import { format, startOfWeek } from 'date-fns'
+import { addDays, format, startOfWeek } from 'date-fns'
 import type { Activity, Automation, AutomationAction, Board, CellValue, Column, Doc, Docs, Group, Item, Kind, Label, User, View, Workspace } from './types'
 import { COLORS, COLOR_LIST, DEMO_USERS, TEMPLATES, dayOffset, priorityLabels, statusLabels, today, uid } from './seed'
 
@@ -610,19 +610,42 @@ function applyAction(b: Board, act: AutomationAction, cur: Item) {
     }
   }
 }
-/** Recurring rule: create one item per day / week. The period is stored on the rule (synced), so it never repeats. */
+const iso = (d: Date) => format(d, 'yyyy-MM-dd')
+/** Mon-Fri still to come in the work week a rule fills: this week, or next week when run at the weekend. */
+export function weekdaysToCreate(now = new Date()) {
+  const weekend = now.getDay() === 0 || now.getDay() === 6
+  const monday = startOfWeek(weekend ? addDays(now, 7) : now, { weekStartsOn: 1 })
+  const days = [0, 1, 2, 3, 4].map((i) => iso(addDays(monday, i))).filter((d) => d >= iso(now))
+  return { period: 'wd:' + iso(monday), days } // 'wd:' keeps weekday periods apart from the weekly rule's
+}
+const meetingLink = (v?: string) => (v && /^https:\/\/\S+$/.test(v.trim()) ? v.trim() : undefined)
+
+/** Recurring rule: create one item per day / week, or the week's dated Mon-Fri items. The period is stored on the rule (synced), so it never repeats. */
 function runRecurring(b: Board, a: Automation) {
   if (a.trigger.kind !== 'recurring') return
   const tr = a.trigger
-  const period = tr.every === 'day' ? today() : format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
+  const week = tr.every === 'weekdays' ? weekdaysToCreate() : null
+  const period = week ? week.period : tr.every === 'day' ? today() : iso(startOfWeek(new Date(), { weekStartsOn: 1 }))
   if (a.lastPeriod === period) return
   // shortcut: two clients checking in the same instant could both create the item; move to a server job if that ever matters
   updateBoard(b.id, { automations: get().board[b.id].automations.map((x) => (x.id === a.id ? { ...x, lastPeriod: period } : x)) })
-  const fresh = get().board[b.id]
-  const g = fresh.groups.find((x) => x.id === tr.groupId && isLive(x)) ?? liveGroups(fresh)[0]
+  const live = get().board[b.id]
+  const g = live.groups.find((x) => x.id === tr.groupId && isLive(x)) ?? liveGroups(live)[0]
   if (!g) return
-  const item = addItem(b.id, g.id, (tr.name.trim() || 'New item').replaceAll('{date}', today()))
-  fire(fresh, a, item.id)
+  const link = meetingLink(tr.link)
+  // weekday items carry their date (so they show on the calendar); a meeting link goes in a Link column
+  const dateCol = week ? (live.columns.find((c) => c.type === 'date') ?? addColumn(b.id, 'date')) : undefined
+  // only a link column meant for calls; never reuse e.g. a "Doc link" column
+  let linkCol = link ? live.columns.find((c) => c.type === 'link' && /meet|meeting|call|zoom/i.test(c.title)) : undefined
+  if (link && !linkCol) (linkCol = addColumn(b.id, 'link')), updateColumn(b.id, linkCol.id, { title: 'Meeting link' })
+  const fresh = get().board[b.id]
+  for (const day of week ? week.days : [today()]) {
+    const values: Record<string, CellValue> = {}
+    if (dateCol) values[dateCol.id] = day
+    if (linkCol && link) values[linkCol.id] = link
+    const item = addItem(b.id, g.id, (tr.name.trim() || 'New item').replaceAll('{date}', day), { values })
+    fire(fresh, a, item.id)
+  }
 }
 const dateValue = (v: unknown) => (typeof v === 'string' ? v : (v as { start?: string } | null)?.start)
 /** Date and recurring automations + trash cleanup (on load + hourly). Date rules fire once per item/day. */

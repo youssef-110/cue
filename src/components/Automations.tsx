@@ -40,6 +40,13 @@ const RECIPES: { name: string; make: (b: Board) => Automation | null }[] = [
     },
   },
   {
+    name: 'Every weekday, a dated task-tracking item (Mon–Fri)',
+    make: (b) => {
+      const g = b.groups.find((x) => !x.archived && !x.deletedAt)
+      return g ? { id: uid('au_'), enabled: true, trigger: { kind: 'recurring', every: 'weekdays', groupId: g.id, name: 'Task tracking {date}' }, action: { kind: 'none' } } : null
+    },
+  },
+  {
     name: 'Every Monday, create a weekly check-in',
     make: (b) => {
       const g = b.groups.find((x) => !x.archived && !x.deletedAt)
@@ -194,8 +201,9 @@ function TriggerEditor({ board, value, onChange }: { board: Board; value: Automa
       )}
       {value.kind === 'recurring' && (
         <>
-          <select aria-label="Every" className={sel} value={value.every} onChange={(e) => onChange({ ...value, every: e.target.value as 'day' | 'monday' })}>
+          <select aria-label="Every" className={sel} value={value.every} onChange={(e) => onChange({ ...value, every: e.target.value as 'day' | 'monday' | 'weekdays' })}>
             <option value="day">every day</option>
+            <option value="weekdays">every weekday (Mon–Fri)</option>
             <option value="monday">every Monday</option>
           </select>
           <span className="text-muted">create</span>
@@ -206,6 +214,17 @@ function TriggerEditor({ board, value, onChange }: { board: Board; value: Automa
               <option key={g.id} value={g.id}>{g.title}</option>
             ))}
           </select>
+          <span className="text-muted">with meeting link</span>
+          <input
+            aria-label="Meeting link"
+            type="url"
+            placeholder="https://meet.google.com/… (optional)"
+            title="Added to each item in a Meeting link column, with a Join button on the calendar"
+            className={cx(sel, 'w-60', value.link && !/^https:\/\/\S+$/.test(value.link.trim()) && 'border-alert')}
+            value={value.link ?? ''}
+            onChange={(e) => onChange({ ...value, link: e.target.value || undefined })}
+          />
+          {value.every === 'weekdays' && <span className="basis-full text-[12.5px] text-faint">Creates the week’s Monday–Friday items in one go, each dated, so they show on the calendar. Weekends stay empty.</span>}
         </>
       )}
       {value.kind === 'status_changes' && (
