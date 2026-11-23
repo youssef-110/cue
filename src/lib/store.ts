@@ -1,7 +1,8 @@
 import { create } from 'zustand'
 import { toast } from 'sonner'
 import { auth, emptySnapshot, type Adapter, type Snapshot } from './sync'
-import { addDays, format, startOfWeek } from 'date-fns'
+import { startOfWeek } from 'date-fns'
+import { iso, scheduledItemId, slotsToCreate, weekdaysToCreate } from './schedule'
 import type { Activity, Automation, AutomationAction, Board, CellValue, Column, Doc, Docs, Group, Item, Kind, Label, User, View, Workspace } from './types'
 import { COLORS, COLOR_LIST, DEMO_USERS, TEMPLATES, dayOffset, priorityLabels, statusLabels, today, uid } from './seed'
 
@@ -409,10 +410,10 @@ export function addView(boardId: string, type: View['type']) {
 }
 
 // ---------- items ----------
-export function addItem(boardId: string, groupId: string, name: string, opts: { parentId?: string; values?: Record<string, CellValue>; top?: boolean } = {}) {
+export function addItem(boardId: string, groupId: string, name: string, opts: { parentId?: string; values?: Record<string, CellValue>; top?: boolean; id?: string } = {}) {
   const siblings = boardItems(boardId).filter((i) => i.groupId === groupId && i.parentId === opts.parentId)
   const order = opts.top ? (siblings[0]?.order ?? 1) - 1 : (siblings.at(-1)?.order ?? 0) + 1
-  const item: Item = { id: uid('i_'), boardId, groupId, parentId: opts.parentId, name, values: opts.values ?? {}, order, createdAt: Date.now(), createdBy: get().meId }
+  const item: Item = { id: opts.id ?? uid('i_'), boardId, groupId, parentId: opts.parentId, name, values: opts.values ?? {}, order, createdAt: Date.now(), createdBy: get().meId }
   const b = get().board[boardId]
   item.subscribers = b ? [...new Set([item.createdBy, ...assigneesOf(b, item)])] : [item.createdBy]
   put('item', item)
@@ -610,25 +611,22 @@ function applyAction(b: Board, act: AutomationAction, cur: Item) {
     }
   }
 }
-const iso = (d: Date) => format(d, 'yyyy-MM-dd')
-/** Mon-Fri still to come in the work week a rule fills: this week, or next week when run at the weekend. */
-export function weekdaysToCreate(now = new Date()) {
-  const weekend = now.getDay() === 0 || now.getDay() === 6
-  const monday = startOfWeek(weekend ? addDays(now, 7) : now, { weekStartsOn: 1 })
-  const days = [0, 1, 2, 3, 4].map((i) => iso(addDays(monday, i))).filter((d) => d >= iso(now))
-  return { period: 'wd:' + iso(monday), days } // 'wd:' keeps weekday periods apart from the weekly rule's
-}
 const meetingLink = (v?: string) => (v && /^https:\/\/\S+$/.test(v.trim()) ? v.trim() : undefined)
 
-/** Recurring rule: create one item per day / week, or the week's dated Mon-Fri items. The period is stored on the rule (synced), so it never repeats. */
+/**
+ * Recurring rule: create one item per day / week, or the week's dated Mon-Fri items. lastPeriod (synced) skips the
+ * work once a period is done; each item's fixed id is what stops duplicates when tabs disagree about lastPeriod.
+ */
 function runRecurring(b: Board, a: Automation) {
   if (a.trigger.kind !== 'recurring') return
   const tr = a.trigger
   const week = tr.every === 'weekdays' ? weekdaysToCreate() : null
   const period = week ? week.period : tr.every === 'day' ? today() : iso(startOfWeek(new Date(), { weekStartsOn: 1 }))
   if (a.lastPeriod === period) return
-  // shortcut: two clients checking in the same instant could both create the item; move to a server job if that ever matters
   updateBoard(b.id, { automations: get().board[b.id].automations.map((x) => (x.id === a.id ? { ...x, lastPeriod: period } : x)) })
+  // slot = the day (weekdays) or the period itself (today / this week's Monday)
+  const slots = slotsToCreate(a.id, week ? week.days : [period], (id) => !!get().item[id])
+  if (!slots.length) return
   const live = get().board[b.id]
   const g = live.groups.find((x) => x.id === tr.groupId && isLive(x)) ?? liveGroups(live)[0]
   if (!g) return
@@ -639,11 +637,12 @@ function runRecurring(b: Board, a: Automation) {
   let linkCol = link ? live.columns.find((c) => c.type === 'link' && /meet|meeting|call|zoom/i.test(c.title)) : undefined
   if (link && !linkCol) (linkCol = addColumn(b.id, 'link')), updateColumn(b.id, linkCol.id, { title: 'Meeting link' })
   const fresh = get().board[b.id]
-  for (const day of week ? week.days : [today()]) {
+  for (const slot of slots) {
+    const day = week ? slot : today()
     const values: Record<string, CellValue> = {}
     if (dateCol) values[dateCol.id] = day
     if (linkCol && link) values[linkCol.id] = link
-    const item = addItem(b.id, g.id, (tr.name.trim() || 'New item').replaceAll('{date}', day), { values })
+    const item = addItem(b.id, g.id, (tr.name.trim() || 'New item').replaceAll('{date}', day), { values, id: scheduledItemId(a.id, slot) })
     fire(fresh, a, item.id)
   }
 }
