@@ -280,6 +280,15 @@ export interface KpiWeek { id: string; week: string; customer?: number; investor
 export interface KpiArea { id: string; name: string; score?: number } // 1-5
 export interface KpiPerson { id: string; name: string; role?: string; fte?: number; status: 'active' | 'joining' | 'leaving'; date?: string }
 export interface KpiRole { id: string; role: string; candidates?: number; interviews?: number; offer?: boolean }
+/** A ladder fed by a Cue board: each live item is an entry, its status label picks the stage. */
+export interface KpiLink {
+  boardId: string
+  columnId: string // status column on that board
+  map: Record<string, string> // label id -> stage id, or 'passed'; unmapped labels are not counted
+  amountColumnId?: string // number column: ticket (investors) or value (accounts)
+  monthly?: boolean // the amount column is per month; the KPI board counts per year
+  chanceColumnId?: string // number or progress column, 0-100 (accounts)
+}
 
 /** A company KPI board: fundraise, milestones, money, pipeline, activity, readiness and team, in one document. */
 export interface Kpi {
@@ -291,9 +300,11 @@ export interface Kpi {
   investorStages: KpiStage[]
   investors: KpiInvestor[]
   investorFocus?: string
+  investorLink?: KpiLink // when set, investors come from that board instead of `investors`
   accountStages: KpiStage[]
   accounts: KpiAccount[]
   accountFocus?: string
+  accountLink?: KpiLink // when set, accounts come from that board instead of `accounts`
   milestones: KpiMilestone[]
   months: KpiMonth[]
   weeks: KpiWeek[]

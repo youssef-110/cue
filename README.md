@@ -42,6 +42,7 @@ The team's hosted workspace is private. There is no public sign-up: the team's a
 
 **KPI boards**
 - The numbers a company is steered by, on one page: the round (government and investor money, soft commits, still open), milestones against their own targets, revenue, cost, cash and runway, the investor funnel, the sales pipeline, opportunities by chance and value, weekly activity, readiness scores, and the team with its open roles
+- The investor funnel and the sales pipeline can come live from any board: each item is an entry and its status, matched to a stage, places it
 - Milestones can count themselves from investor money, the whole round, or accounts that reached a pipeline stage; the nearest open deadline is called out at the top
 - Edit any panel in place as a small table; amounts accept 2,600, 12k or 1.2M
 - **TV board**: full screen as a lit departure board with split-flap figures, updating live and keeping the screen awake

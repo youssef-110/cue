@@ -4,8 +4,10 @@
 // Keyless: Vercel's per-request OIDC token is exchanged for Google credentials via
 // workload identity federation (pool "vercel" -> service account cue-team-api). No key file exists.
 // Env: ALLOWED_ORIGINS (comma list). Email (optional), either:
-//   RESEND_API_KEY (+ MAIL_FROM, e.g. "Cue <cue@your-domain.com>" once the domain is verified in Resend), or
+//   RESEND_API_KEY + MAIL_FROM, e.g. "Cue <cue@your-domain.com>" once the domain is verified in Resend, or
 //   SMTP_USER + SMTP_PASS (a Gmail address and an app password work), SMTP_HOST, SMTP_PORT.
+// Resend without MAIL_FROM sends from its test address, which only reaches the Resend account's owner,
+// so SMTP wins over it when both are set.
 // APP_URL: the app's address, used for links in emails.
 // People connect an address by confirming a 6-digit code; only confirmed addresses (members/{uid}.notifyEmail,
 // written here) ever receive mail. Pending codes live in /emailCodes, which browsers cannot read.
@@ -73,23 +75,27 @@ const APP_URL = process.env.APP_URL || 'https://youssef-110.github.io/cue/app.ht
 const esc = (t: string) => t.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
 type Mail = { to: string; subject: string; html: string; text: string }
 let mailer: nodemailer.Transporter | null = null
-/** Send through Resend when its key is set, otherwise SMTP. */
+/** Resend from a verified domain, else SMTP, else Resend's test sender (reaches only the Resend account owner). */
 async function send(m: Mail) {
   const key = process.env.RESEND_API_KEY
-  if (key) {
+  const from = process.env.MAIL_FROM
+  const user = process.env.SMTP_USER
+  const pass = process.env.SMTP_PASS
+  if (key && (from || !user || !pass)) {
     const r = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: process.env.MAIL_FROM || 'Cue <onboarding@resend.dev>', ...m }),
+      body: JSON.stringify({ from: from || 'Cue <onboarding@resend.dev>', ...m }),
     })
     if (!r.ok) {
       const e = (await r.json().catch(() => ({}))) as { message?: string }
-      fail(502, `The email service refused the message: ${String(e.message ?? r.status).slice(0, 160)}`)
+      const msg = String(e.message ?? r.status)
+      if (!from && /testing emails|verify a domain/i.test(msg))
+        fail(502, 'The team server can only email its own admin for now. Ask your admin to connect Gmail (SMTP) or a sending domain on the team server.')
+      fail(502, `The email service refused the message: ${msg.slice(0, 160)}`)
     }
     return
   }
-  const user = process.env.SMTP_USER
-  const pass = process.env.SMTP_PASS
   if (!user || !pass) fail(503, 'Email is not set up on the team server yet. Ask your admin.')
   mailer ??= nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
@@ -240,6 +246,7 @@ export default async function handler(req: Req, res: Res) {
         if (!ids.length) return res.status(200).json({ sent: 0 })
         const actor = (await db.doc(`user/${caller.uid}`).get()).get('name') ?? 'A teammate'
         let sent = 0
+        let failed = 0
         for (const snap of await db.getAll(...ids.map((id) => db.doc(`notification/${id}`)))) {
           const n = snap.data()
           // only the sender may trigger, once, and only for something that just happened
@@ -259,10 +266,16 @@ export default async function handler(req: Req, res: Res) {
           const headline = `${actor} updated “${itemName}”`.slice(0, 160)
           const { html, text } = render(headline, `There is something new for you on “${itemName}” in ${boardName}. Open Cue to see it and reply.`, link)
           await snap.ref.update({ emailedAt: Date.now() }) // mark first so a retry never sends twice
-          await send({ to, subject: headline, html, text })
-          sent++
+          // one refused address must not stop the others in this batch
+          try {
+            await send({ to, subject: headline, html, text })
+            sent++
+          } catch (e) {
+            failed++
+            console.error('notify: email to', n.userId, 'failed:', (e as Error).message)
+          }
         }
-        return res.status(200).json({ sent })
+        return res.status(200).json({ sent, failed })
       }
       case 'test': {
         const to = me.get('notifyEmail') as string | undefined

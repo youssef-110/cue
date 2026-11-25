@@ -185,6 +185,7 @@ const SECTIONS: Section[] = [
         <Steps
           items={[
             <>Click <B>Edit</B> on a panel to type its numbers into a small table. Amounts accept 2,600, 12k or 1.2M. Changes save as you leave each cell.</>,
+            <>The <B>Investor funnel</B> and <B>Sales pipeline</B> can come from a board: in Edit, choose <B>From a board</B>, pick the board and match each of its statuses to a stage. Every item then counts live; pick a value and a chance column to plot opportunities.</>,
             <>Milestones can count themselves: from firm investor money, the whole round, or the accounts that reached a pipeline stage. The nearest open deadline shows at the top.</>,
             <>Click a lamp under <B>Company readiness</B> to score an area from 1 to 5.</>,
             <>Click <B>TV board</B> to show the board full screen as a departure board for the office screen. It updates live and keeps the screen awake. Press Esc to leave.</>,

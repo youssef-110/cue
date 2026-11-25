@@ -1,9 +1,9 @@
 import { useMemo, useRef, useState } from 'react'
 import { Eye, Lock, MonitorPlay, MoreHorizontal, Plus, Target, Trash2, Users } from 'lucide-react'
 import { format } from 'date-fns'
-import { createKpi, deleteKpi, navigate, saveKpi, useCanEdit, useStore } from '../lib/store'
+import { createKpi, deleteKpi, navigate, saveKpi, useCanEdit, useStore, visibleItem } from '../lib/store'
 import { auth } from '../lib/sync'
-import { milestoneRows } from '../lib/kpi'
+import { milestoneRows, withLinks } from '../lib/kpi'
 import { today as todayIso } from '../lib/seed'
 import type { Kpi } from '../lib/types'
 import { askText } from '../components/askText'
@@ -28,7 +28,7 @@ export function Kpis({ id }: { id?: string }) {
   const all = useStore((s) => s.kpi)
   const editable = useCanEdit()
   const list = useMemo(() => Object.values(all).sort((a, b) => a.order - b.order), [all])
-  const k = (id && all[id]) || list[0]
+  const k = useLinked((id && all[id]) || list[0])
   const today = todayIso()
 
   return (
@@ -64,6 +64,16 @@ export function Kpis({ id }: { id?: string }) {
         </div>
       )}
     </div>
+  )
+}
+
+/** The KPI board with linked ladders filled from their boards; every panel and the TV board read this. */
+function useLinked(k?: Kpi) {
+  const boards = useStore((s) => s.board)
+  const items = useStore((s) => s.item)
+  return useMemo(
+    () => (k && (k.investorLink || k.accountLink) ? withLinks(k, boards, Object.values(items).filter((i) => !i.parentId && visibleItem(i, boards, items))) : k),
+    [k, boards, items],
   )
 }
 

@@ -1,7 +1,7 @@
 // Run: node --test tests/kpi.test.mjs  (Node 23.6+ strips the .ts types itself)
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { compact, exampleKpi, ladder, lastWeeks, milestoneRows, money, moneyStatus, nearestBehind, newKpi, nextTeamChange, opportunities, parseAmount, readiness, roundStatus, weekly } from '../src/lib/kpi.ts'
+import { autoMap, compact, exampleKpi, linkedEntries, withLinks, ladder, lastWeeks, milestoneRows, money, moneyStatus, nearestBehind, newKpi, nextTeamChange, opportunities, parseAmount, readiness, roundStatus, weekly } from '../src/lib/kpi.ts'
 
 const TODAY = '2026-11-25' // a Wednesday
 
@@ -104,4 +104,24 @@ test('readiness, opportunities and the next team change', () => {
   assert.equal(k.accounts.find((a) => a.id === o.largest).name, 'Atlas Media')
   assert.deepEqual(o.missing, ['Orchard EdTech', 'Granite Sports'])
   assert.equal(k.team.find((p) => p.id === nextTeamChange(k, TODAY)).name, 'Rae Collins')
+})
+
+test('a ladder linked to a board counts its items by status label', () => {
+  const k = newKpi('me', 'Test', ['me'])
+  const [early, , , signed, , , paying] = k.accountStages
+  const labels = [{ id: 'l1', name: 'Paying' }, { id: 'l2', name: 'loi signed' }, { id: 'l3', name: 'Early talks / intro' }, { id: 'l4', name: 'On hold' }]
+  const map = autoMap(labels, k.accountStages, false)
+  assert.deepEqual(map, { l1: paying.id, l2: signed.id, l3: early.id })
+  assert.equal(autoMap([{ id: 'x', name: 'Declined' }], k.investorStages, true).x, 'passed')
+  const board = { id: 'b', name: 'Sales', columns: [{ id: 'st', type: 'status', title: 'Stage', labels }, { id: 'v', type: 'number', title: 'Monthly value' }, { id: 'p', type: 'progress', title: 'Chance' }] }
+  const item = (id, name, label, v, p) => ({ id, boardId: 'b', groupId: 'g', name, order: 0, createdAt: 0, createdBy: 'me', values: { st: label, v, p } })
+  const items = [item('a', 'Acme', 'l1', 1000, 100), item('b', 'Beta', 'l4', 500), item('c', 'Gamma', undefined), item('d', 'Delta', 'l2', '', 40)]
+  k.accountLink = { boardId: 'b', columnId: 'st', map, amountColumnId: 'v', monthly: true, chanceColumnId: 'p' }
+  const { entries, skipped } = linkedEntries(k.accountLink, board, items)
+  assert.deepEqual(entries.map((e) => [e.name, e.stage, e.amount, e.chance]), [['Acme', paying.id, 12000, 100], ['Delta', signed.id, undefined, 40]])
+  assert.deepEqual(skipped, [{ name: 'On hold', count: 1 }, { name: 'No status', count: 1 }])
+  const linked = withLinks(k, { b: board }, items)
+  assert.equal(linked.accounts.length, 2)
+  assert.equal(opportunities(linked).weighted, 12000)
+  assert.equal(withLinks(k, {}, items).accounts.length, 0) // board gone or private: nothing, not the old typed list
 })

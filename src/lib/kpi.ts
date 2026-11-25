@@ -1,6 +1,6 @@
 // KPI board model: defaults and every derived number. Pure (no store, no DOM), so tests run it directly.
 import { addDays, addMonths, differenceInCalendarDays, format, parseISO, startOfWeek } from 'date-fns'
-import type { Kpi, KpiMilestone, KpiStage } from './types'
+import type { Board, Item, Kpi, KpiLink, KpiMilestone, KpiStage } from './types'
 
 const rid = (p: string) => p + Math.random().toString(36).slice(2, 10)
 const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0)
@@ -216,6 +216,61 @@ export function nextTeamChange(k: Kpi, today: string) {
   const dated = k.team.filter((p) => p.status !== 'active' && p.date)
   const upcoming = dated.filter((p) => p.date! >= today).sort((a, b) => a.date!.localeCompare(b.date!))
   return (upcoming[0] ?? dated.sort((a, b) => b.date!.localeCompare(a.date!))[0])?.id
+}
+
+// ---------- ladders fed by a board ----------
+const norm = (s: string) => s.trim().toLowerCase()
+/** First guess at label -> stage: same name, or one name inside the other; investor labels like "Passed" or "Declined" -> passed. */
+export function autoMap(labels: { id: string; name: string }[], stages: KpiStage[], passed: boolean) {
+  const map: Record<string, string> = {}
+  for (const l of labels) {
+    const n = norm(l.name)
+    const hit = stages.find((s) => norm(s.name) === n) ?? stages.find((s) => n && (norm(s.name).includes(n) || n.includes(norm(s.name))))
+    if (hit) map[l.id] = hit.id
+    else if (passed && /pass|declin|lost|rejected|not interested/.test(n)) map[l.id] = 'passed'
+  }
+  return map
+}
+/** Entries of a linked board: `items` are its live top-level items. Labels with no stage are left out. */
+export function linkedEntries(link: KpiLink, board: Board, items: Item[]) {
+  const col = board.columns.find((c) => c.id === link.columnId)
+  const num = (colId: string | undefined, i: Item) => {
+    const v = colId ? Number(i.values[colId]) : NaN
+    return colId && i.values[colId] != null && i.values[colId] !== '' && Number.isFinite(v) ? v : undefined
+  }
+  const entries: { id: string; name: string; stage: string; amount?: number; chance?: number }[] = []
+  const skipped = new Map<string, number>() // label name (or "No status") -> items left out
+  for (const i of items) {
+    if (i.boardId !== board.id || i.parentId) continue
+    const labelId = i.values[link.columnId] as string | undefined
+    const stage = labelId ? link.map[labelId] : undefined
+    if (!stage) {
+      const name = col?.labels?.find((l) => l.id === labelId)?.name ?? 'No status'
+      skipped.set(name, (skipped.get(name) ?? 0) + 1)
+      continue
+    }
+    const amount = num(link.amountColumnId, i)
+    entries.push({ id: i.id, name: i.name, stage, amount: amount != null && link.monthly ? amount * 12 : amount, chance: num(link.chanceColumnId, i) })
+  }
+  return { entries, skipped: [...skipped].map(([name, count]) => ({ name, count })) }
+}
+/** A linked board this person can open and that is not archived or in the trash. */
+export const linkedBoard = (link: KpiLink | undefined, boards: Record<string, Board>) => {
+  const b = link && boards[link.boardId]
+  return b && !b.archived && !b.deletedAt ? b : undefined
+}
+/** The board as the panels see it: linked ladders replaced by their board's items (none if the board is gone or hidden). */
+export function withLinks(k: Kpi, boards: Record<string, Board>, items: Item[]): Kpi {
+  let out = k
+  if (k.investorLink) {
+    const b = linkedBoard(k.investorLink, boards)
+    out = { ...out, investors: b ? linkedEntries(k.investorLink, b, items).entries.map(({ id, name, stage, amount }) => ({ id, name, stage, amount })) : [] }
+  }
+  if (k.accountLink) {
+    const b = linkedBoard(k.accountLink, boards)
+    out = { ...out, accounts: b ? linkedEntries(k.accountLink, b, items).entries.map(({ id, name, stage, amount, chance }) => ({ id, name, stage, value: amount, chance })) : [] }
+  }
+  return out
 }
 
 // ---------- the example board (local mode only; every name is invented) ----------

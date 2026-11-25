@@ -11,6 +11,7 @@ import {
 import type { Kpi, KpiAccount, KpiArea, KpiInvestor, KpiMilestone, KpiMonth, KpiPerson, KpiRole, KpiStage, KpiWeek } from '../lib/types'
 import { DueTime } from '../components/departure'
 import { cx } from '../components/ui'
+import { LinkEditor, LinkNote, linkUses } from './link'
 import { ChartTip, Empty, Field, FieldInput, Fig, Headline, Ladder, Meter, MiniColumns, Panel, PctBox, Pips, RowsEditor, Segmented, type Col } from './parts'
 
 export type PanelProps = { k: Kpi; editable: boolean; today: string }
@@ -373,6 +374,7 @@ function StagesEditor({ k, list, money: withMoney, readOnly }: { k: Kpi; list: '
           onRemove={(id) => {
             const n = users.filter((u) => u.stage === id).length
             const used = k.milestones.some((m) => m.source === 'stage' && m.stage === id)
+            if (linkUses(k, list === 'investorStages' ? 'investor' : 'account', id)) return void toast.error('The linked board counts a status as this stage. Change that first')
             if (n) return void toast.error(`Move the ${n} at this stage to another stage first`)
             if (used) return void toast.error('A milestone counts this stage. Change that milestone first')
             o.remove(id, k)
@@ -413,7 +415,12 @@ export function Investors({ k, editable }: PanelProps) {
       <Headline value={String(l.total)} note={`Where each investor stands today, furthest stage on top. Ink: ${k.investorFocus ? 'the stage the team is pushing' : 'the furthest stage reached'}.`}>
         investors in talks{r.committed || r.soft ? <>, <Fig>{$(r.committed)}</Fig> firm, <Fig>{$(r.soft)}</Fig> soft</> : null}
       </Headline>
-      {k.investors.length ? <Ladder rows={l.rows} max={l.max} focus={l.focus} /> : !editing && <Empty>{editable ? 'List the investors you talk to and the stage each one is at. Use Edit.' : 'No investors yet.'}</Empty>}
+      {k.investors.length ? (
+        <Ladder rows={l.rows} max={l.max} focus={l.focus} />
+      ) : (
+        !editing && <Empty>{k.investorLink ? 'Nothing on the linked board is counted yet. Use Edit to match its statuses to stages.' : editable ? 'List the investors you talk to and the stage each one is at, or take them from a board. Use Edit.' : 'No investors yet.'}</Empty>
+      )}
+      <LinkNote k={k} which="investor" />
       {passed.length > 0 && (
         <p className="border-t border-line pt-3 text-[12.5px] text-faint">
           <span className="caps mr-1.5 text-[11.5px] font-semibold tracking-[0.12em] text-muted">Passed</span>
@@ -422,8 +429,9 @@ export function Investors({ k, editable }: PanelProps) {
       )}
       {editing && (
         <>
+          <LinkEditor k={k} which="investor" editable={editable} />
           <FocusPick list={k.investorStages} value={k.investorFocus} disabled={!editable} onChange={(v) => saveKpi(k.id, (x) => ({ ...x, investorFocus: v }))} />
-          <RowsEditor
+          {!k.investorLink && <RowsEditor
             rows={k.investors}
             cols={cols}
             readOnly={!editable}
@@ -432,7 +440,7 @@ export function Investors({ k, editable }: PanelProps) {
             onRemove={(id) => o.remove(id, k)}
             onAdd={() => o.add({ id: rid('v_'), name: '', stage: k.investorStages[0]?.id ?? 'passed' })}
             addLabel="Add investor"
-          />
+          />}
           <StagesEditor k={k} list="investorStages" money readOnly={!editable} />
         </>
       )}
@@ -458,11 +466,17 @@ export function Pipeline({ k, editable }: PanelProps) {
       <Headline value={String(l.total)} note={`Accounts by the furthest step they reached. Ink: ${k.accountFocus ? 'the step the team is pushing' : 'the furthest step reached'}.`}>
         accounts{lastStage ? <>, <Fig>{atLast}</Fig> {lastStage.name.toLowerCase()}</> : null}
       </Headline>
-      {k.accounts.length ? <Ladder rows={l.rows} max={l.max} focus={l.focus} /> : !editing && <Empty>{editable ? 'Add the companies you sell to, the furthest step each reached, and what they are worth a year. Use Edit.' : 'No accounts yet.'}</Empty>}
+      {k.accounts.length ? (
+        <Ladder rows={l.rows} max={l.max} focus={l.focus} />
+      ) : (
+        !editing && <Empty>{k.accountLink ? 'Nothing on the linked board is counted yet. Use Edit to match its statuses to stages.' : editable ? 'Add the companies you sell to and the furthest step each reached, or take them from your sales board. Use Edit.' : 'No accounts yet.'}</Empty>
+      )}
+      <LinkNote k={k} which="account" />
       {editing && (
         <>
+          <LinkEditor k={k} which="account" editable={editable} />
           <FocusPick list={k.accountStages} value={k.accountFocus} disabled={!editable} onChange={(v) => saveKpi(k.id, (x) => ({ ...x, accountFocus: v }))} />
-          <RowsEditor
+          {!k.accountLink && <RowsEditor
             rows={k.accounts}
             cols={cols}
             readOnly={!editable}
@@ -471,7 +485,7 @@ export function Pipeline({ k, editable }: PanelProps) {
             onRemove={(id) => o.remove(id, k)}
             onAdd={() => o.add({ id: rid('c_'), name: '', stage: k.accountStages[0]?.id ?? '' })}
             addLabel="Add account"
-          />
+          />}
           <StagesEditor k={k} list="accountStages" readOnly={!editable} />
         </>
       )}
@@ -486,7 +500,7 @@ export function Opportunities({ k, editable }: PanelProps) {
   const largest = o.plotted.find((p) => p.id === o.largest)
   return (
     <Panel title="Opportunities by chance and value" editable={editable} className="lg:col-span-7">
-      <Headline value={$(o.weighted)} note="Across: chance of closing. Up: value per year. Size: value times chance. Ink: the largest. Values and chances are edited in Sales pipeline.">
+      <Headline value={$(o.weighted)} note={`Across: chance of closing. Up: value per year. Size: value times chance. Ink: the largest. ${k.accountLink ? 'Values and chances come from the linked sales board.' : 'Values and chances are edited in Sales pipeline.'}`}>
         value times chance, <Fig>{o.plotted.length}</Fig> of <Fig>{k.accounts.length}</Fig> accounts valued
       </Headline>
       {o.plotted.length ? (
@@ -517,7 +531,7 @@ export function Opportunities({ k, editable }: PanelProps) {
           </ResponsiveContainer>
         </div>
       ) : (
-        <Empty>Give accounts in Sales pipeline a value per year and a chance of closing to plot them here.</Empty>
+        <Empty>{k.accountLink ? 'Pick a value column and a chance column for the linked board (Sales pipeline, Edit) to plot accounts here.' : 'Give accounts in Sales pipeline a value per year and a chance of closing to plot them here.'}</Empty>
       )}
       {o.missing.length > 0 && <p className="text-[12.5px] leading-snug text-faint">Not plotted, value or chance missing: {o.missing.join(', ')}</p>}
     </Panel>
