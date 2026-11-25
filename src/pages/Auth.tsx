@@ -3,9 +3,9 @@ import { motion } from 'motion/react'
 import { format } from 'date-fns'
 import { ArrowRight, Loader2 } from 'lucide-react'
 import { bootstrap, useStore } from '../lib/store'
-import { signInWithEmailAndPassword, signOut, updatePassword } from 'firebase/auth'
+import { sendPasswordResetEmail, signInWithEmailAndPassword, signOut, updatePassword } from 'firebase/auth'
 import { auth } from '../lib/sync'
-import { USERNAME_RE, claimWorkspace, clearPasswordFlag, loginEmail, normalizeUsername, usernameOf } from '../lib/team'
+import { EMAIL_RE, USERNAME_RE, claimWorkspace, clearPasswordFlag, loginFor, normalizeUsername, usernameOf } from '../lib/team'
 import { COLOR_LIST, uid } from '../lib/seed'
 import { Button, Logo, cx } from '../components/ui'
 
@@ -60,12 +60,13 @@ const authMessage = (e: unknown) => {
     'auth/invalid-credential': 'Wrong username or password.',
     'auth/user-not-found': 'Wrong username or password.',
     'auth/wrong-password': 'Wrong username or password.',
-    'auth/email-already-in-use': 'That username is taken.',
+    'auth/email-already-in-use': 'That username or email is already used by a login.',
     'auth/weak-password': 'Use at least 8 characters.',
     'auth/too-many-requests': 'Too many attempts. Wait a minute and try again.',
     'auth/operation-not-allowed': 'New accounts are created by your admin.',
     'auth/admin-restricted-operation': 'New accounts are created by your admin.',
     'auth/requires-recent-login': 'Sign in again, then change your password.',
+    'auth/invalid-email': 'That does not look like an email address.',
   }
   return map[code] ?? (e as Error).message
 }
@@ -111,15 +112,30 @@ export function SignIn() {
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const go = (m: typeof mode) => (setMode(m), setError(''))
+  const [sentTo, setSentTo] = useState('')
+  const go = (m: typeof mode) => (setMode(m), setError(''), setSentTo(''))
   const submit = async () => {
     if (!auth) return
-    const u = normalizeUsername(username)
-    if (!USERNAME_RE.test(u)) return setError('Usernames use lowercase letters, digits, dots, dashes or underscores.')
+    const u = username.includes('@') ? username.trim().toLowerCase() : normalizeUsername(username)
+    if (u.includes('@') ? !EMAIL_RE.test(u) : !USERNAME_RE.test(u)) return setError('Type your username, or the email your login uses.')
     setError('')
     setBusy(true)
     try {
-      await signInWithEmailAndPassword(auth, loginEmail(u), password)
+      await signInWithEmailAndPassword(auth, loginFor(u), password)
+    } catch (e) {
+      setError(authMessage(e))
+    }
+    setBusy(false)
+  }
+  const sendReset = async () => {
+    const email = username.trim().toLowerCase()
+    if (!auth) return
+    if (!EMAIL_RE.test(email)) return setError('Type the email your login uses.')
+    setError('')
+    setBusy(true)
+    try {
+      await sendPasswordResetEmail(auth, email, { url: location.href.split('#')[0] })
+      setSentTo(email)
     } catch (e) {
       setError(authMessage(e))
     }
@@ -130,9 +146,31 @@ export function SignIn() {
       <Title>{mode === 'forgot' ? 'Forgot password' : 'Sign in'}</Title>
       <Lead>
         {mode === 'forgot'
-          ? 'Your admin can set a new one for you from the Team screen. You’ll choose your own the next time you sign in.'
-          : 'Use the username and password your admin gave you.'}
+          ? 'If your login uses an email, we send a link there to set a new password. Logins with only a username: your admin sets a new one from the Team screen.'
+          : 'Use your username, or your email if your login has one.'}
       </Lead>
+      {mode === 'forgot' &&
+        (sentTo ? (
+          <p role="status" className="rounded-md border border-line bg-panel-2 px-3 py-2.5 text-[13.5px] leading-snug">
+            If a login uses <b className="font-mono font-semibold">{sentTo}</b>, a link to set a new password is on its way. Check spam too; it comes from Firebase.
+          </p>
+        ) : (
+          <form
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault()
+              sendReset()
+            }}
+          >
+            <Field label="Email">
+              <input className={cx(input, 'font-mono')} type="email" required autoComplete="email" aria-label="Email" value={username} onChange={(e) => setUsername(e.target.value)} />
+            </Field>
+            <ErrorLine text={error} />
+            <Button variant="primary" disabled={busy} className={primaryCls}>
+              {busy ? <Loader2 className="animate-spin" /> : 'Email me a reset link'}
+            </Button>
+          </form>
+        ))}
       {mode === 'in' && (
         <form
           className="space-y-4"
@@ -141,14 +179,14 @@ export function SignIn() {
             submit()
           }}
         >
-          <Field label="Username">
+          <Field label="Username or email">
             <input
               className={cx(input, 'font-mono')}
               required
               autoComplete="username"
               autoCapitalize="none"
               spellCheck={false}
-              aria-label="Username"
+              aria-label="Username or email"
               aria-invalid={!!error || undefined}
               value={username}
               onChange={(e) => setUsername(e.target.value)}

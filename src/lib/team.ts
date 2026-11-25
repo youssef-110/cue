@@ -22,6 +22,11 @@ export const USERNAME_RE = /^[a-z0-9][a-z0-9._-]{1,31}$/
 export const normalizeUsername = (u: string) => u.trim().toLowerCase()
 export const loginEmail = (username: string) => `${normalizeUsername(username)}@${LOGIN_DOMAIN}`
 export const usernameOf = (email?: string | null) => (email ?? '').replace(`@${LOGIN_DOMAIN}`, '')
+export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+/** What people type at sign-in: a username, or the real email a login was switched to. */
+export const loginFor = (id: string) => (id.includes('@') ? id.trim().toLowerCase() : loginEmail(id))
+/** A login that can receive mail (Firebase can send it a reset link); username logins live on the reserved domain. */
+export const hasRealEmail = (email?: string | null) => !!email && !email.endsWith('@' + LOGIN_DOMAIN)
 
 export type Access = { kind: 'member'; member: Member } | { kind: 'claim' } | { kind: 'denied' }
 

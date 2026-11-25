@@ -6,6 +6,7 @@ import { USERNAME_RE, createAccount, normalizeUsername, removeAccount, resetPass
 import { auth } from '../lib/sync'
 import { useStore } from '../lib/store'
 import { Modal } from './TemplateModal'
+import { YourLogin } from './YourLogin'
 import { Button, cx } from './ui'
 import { ROLES, ROLE_HINT, ROLE_LABEL, RoleMatrix } from './Roles'
 
@@ -52,6 +53,7 @@ export function TeamModal({ open, onClose }: { open: boolean; onClose: () => voi
   const [role, setNewRole] = useState<Role>('member')
   const [busy, setBusy] = useState<string | null>(null)
   const [shown, setShown] = useState<{ username: string; password: string } | null>(null)
+  const [mine, setMine] = useState(false)
 
   const run = async (key: string, fn: () => Promise<unknown>) => {
     setBusy(key)
@@ -129,7 +131,7 @@ export function TeamModal({ open, onClose }: { open: boolean; onClose: () => voi
                 <th className={head}>Person</th>
                 <th className={head}>Username</th>
                 <th className={head}>Role</th>
-                {isAdmin && <th className={cx(head, 'text-right')}>Access</th>}
+                <th className={cx(head, 'text-right')}>Access</th>
               </tr>
             </thead>
             <tbody>
@@ -168,9 +170,13 @@ export function TeamModal({ open, onClose }: { open: boolean; onClose: () => voi
                         </span>
                       )}
                     </td>
-                    {isAdmin && (
-                      <td className="px-3 py-2.5 text-right">
-                        {!self && (
+                    <td className="px-3 py-2.5 text-right">
+                        {self && (
+                          <button onClick={() => setMine(true)} className="inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-[13px] text-muted transition-colors hover:bg-panel-2 hover:text-fg">
+                            <KeyRound className="size-3.5" /> Change password
+                          </button>
+                        )}
+                        {isAdmin && !self && (
                           <span className="inline-flex gap-1">
                             <button
                               onClick={() => reset(m)}
@@ -189,14 +195,14 @@ export function TeamModal({ open, onClose }: { open: boolean; onClose: () => voi
                           </span>
                         )}
                       </td>
-                    )}
                   </tr>
                 )
               })}
             </tbody>
           </table>
         </div>
-        {!isAdmin && <p className="mt-4 text-[13px] text-faint">Only admins can create logins or reset passwords.</p>}
+        {!isAdmin && <p className="mt-4 text-[13px] text-faint">Only admins can create logins or reset other people’s passwords.</p>}
+        <YourLogin open={mine} onClose={() => setMine(false)} />
         <details className="group mt-6">
           <summary className="caps cursor-pointer select-none text-[13px] font-semibold tracking-[0.12em] text-muted hover:text-fg">What each role can do</summary>
           <div className="mt-3">
