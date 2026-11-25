@@ -3,7 +3,8 @@ import { toast } from 'sonner'
 import { auth, emptySnapshot, type Adapter, type Snapshot } from './sync'
 import { startOfWeek } from 'date-fns'
 import { iso, scheduledItemId, slotsToCreate, weekdaysToCreate } from './schedule'
-import type { Activity, Automation, AutomationAction, Board, CellValue, Column, Doc, Docs, Group, Item, Kind, Label, User, View, Workspace } from './types'
+import type { Activity, Automation, AutomationAction, Board, CellValue, Column, Doc, Docs, Group, Item, Kind, Kpi, Label, User, View, Workspace } from './types'
+import { exampleKpi, newKpi } from './kpi'
 import { COLORS, COLOR_LIST, DEMO_USERS, TEMPLATES, dayOffset, priorityLabels, statusLabels, today, uid } from './seed'
 
 export type Route =
@@ -12,6 +13,7 @@ export type Route =
   | { page: 'inbox' }
   | { page: 'board'; boardId: string; viewId?: string } // viewId 'doc' = the board's doc tab
   | { page: 'dashboards'; id?: string }
+  | { page: 'kpis'; id?: string }
   | { page: 'archive' }
   | { page: 'doc'; id: string }
   | { page: 'help' }
@@ -48,6 +50,7 @@ function parseHash(): Route {
   const [, page, id, viewId] = location.hash.replace(/^#\/?/, '/').split('/')
   if (page === 'board' && id) return { page: 'board', boardId: id, viewId }
   if (page === 'dashboards') return { page: 'dashboards', id: id || undefined }
+  if (page === 'kpis') return { page: 'kpis', id: id || undefined }
   if (page === 'doc' && id) return { page: 'doc', id }
   if (page === 'archive') return { page: 'archive' }
   if (page === 'my-work') return { page: 'my-work' }
@@ -59,8 +62,8 @@ export function navigate(route: Route) {
   const hash =
     route.page === 'board'
       ? `#/board/${route.boardId}${route.viewId ? '/' + route.viewId : ''}`
-      : route.page === 'dashboards' && route.id
-        ? `#/dashboards/${route.id}`
+      : (route.page === 'dashboards' || route.page === 'kpis') && route.id
+        ? `#/${route.page}/${route.id}`
         : route.page === 'doc'
           ? `#/doc/${route.id}`
           : `#/${route.page}`
@@ -88,7 +91,7 @@ export const useCanEdit = () => useStore((s) => s.role !== 'viewer')
 export const PUBLIC: string[] = ['*']
 const STAMPED: Kind[] = ['item', 'update', 'activity', 'doc']
 export const boardReaders = (boardId?: string) => (boardId && get().board[boardId]?.readers) || PUBLIC
-export const isPrivate = (b?: Board) => !!b?.readers && !b.readers.includes('*')
+export const isPrivate = (b?: Pick<Board, 'readers'>) => !!b?.readers && !b.readers.includes('*')
 export const canSeeBoard = (boardId: string | undefined, userId: string) => {
   const r = boardReaders(boardId)
   return r.includes('*') || r.includes(userId)
@@ -707,4 +710,28 @@ export function deleteDoc(id: string) {
   if (!d) return
   remove('doc', id)
   toast(`Deleted “${d.title}”`, { action: { label: 'Undo', onClick: () => put('doc', d) } })
+}
+
+// ---------- KPI boards ----------
+/** New KPI boards are private to their maker (admins always see them) until shared. Local mode gets the example. */
+export function createKpi(name: string, example = false) {
+  const meId = get().meId
+  const k = example ? exampleKpi(meId, today()) : newKpi(meId, name, [meId])
+  if (!example) k.name = name
+  put('kpi', k)
+  navigate({ page: 'kpis', id: k.id })
+  return k
+}
+/** Applies `fn` to the latest copy, so edits made elsewhere in the meantime are kept. */
+export function saveKpi(id: string, fn: (k: Kpi) => Kpi) {
+  const k = get().kpi[id]
+  if (k) put('kpi', { ...fn(k), updatedAt: Date.now(), updatedBy: get().meId })
+}
+export const canManageKpi = (k?: Kpi) => !!k && (get().isAdmin || k.createdBy === get().meId)
+export function deleteKpi(id: string) {
+  const k = get().kpi[id]
+  if (!k || !canManageKpi(k)) return void toast.error('Only the person who made this KPI board, or an admin, can delete it', { id: 'purge' })
+  remove('kpi', id)
+  navigate({ page: 'kpis' })
+  toast(`Deleted “${k.name}”`)
 }

@@ -256,6 +256,58 @@ export interface Doc {
   readers?: Readers
 }
 
+/** A step on a KPI ladder (investor funnel, sales pipeline), stored earliest first. */
+export interface KpiStage {
+  id: string
+  name: string
+  money?: 'soft' | 'committed' // investor stages: does money at this stage count as a soft or a firm commitment?
+}
+export interface KpiInvestor { id: string; name: string; stage: string; amount?: number; note?: string } // stage: a stage id, or 'passed'
+export interface KpiAccount { id: string; name: string; stage: string; value?: number; chance?: number; note?: string } // value per year; chance 0-100
+export type KpiSource = 'manual' | 'investors' | 'round' | 'stage'
+export interface KpiMilestone {
+  id: string
+  name: string
+  target: number
+  actual?: number // manual milestones only; the others are counted from the board
+  due?: string // yyyy-MM-dd
+  money?: boolean // manual: target and actual are amounts of money
+  source?: KpiSource // investors = firm investor money, round = whole round, stage = accounts at or past `stage`
+  stage?: string
+}
+export interface KpiMonth { id: string; month: string; revenue?: number; cost?: number; cash?: number } // month yyyy-MM; cash = bank balance at month end
+export interface KpiWeek { id: string; week: string; customer?: number; investor?: number; outreach?: number; lois?: number } // week = its Monday, yyyy-MM-dd
+export interface KpiArea { id: string; name: string; score?: number } // 1-5
+export interface KpiPerson { id: string; name: string; role?: string; fte?: number; status: 'active' | 'joining' | 'leaving'; date?: string }
+export interface KpiRole { id: string; role: string; candidates?: number; interviews?: number; offer?: boolean }
+
+/** A company KPI board: fundraise, milestones, money, pipeline, activity, readiness and team, in one document. */
+export interface Kpi {
+  id: string
+  name: string
+  company?: string
+  currency: string
+  round: { target?: number; investorTarget?: number; government?: number; close?: string }
+  investorStages: KpiStage[]
+  investors: KpiInvestor[]
+  investorFocus?: string
+  accountStages: KpiStage[]
+  accounts: KpiAccount[]
+  accountFocus?: string
+  milestones: KpiMilestone[]
+  months: KpiMonth[]
+  weeks: KpiWeek[]
+  areas: KpiArea[]
+  team: KpiPerson[]
+  roles: KpiRole[]
+  createdBy: string
+  createdAt: number
+  updatedAt: number
+  updatedBy?: string
+  order: number
+  readers: Readers // private by default: [creator]; ['*'] = the whole team. Admins always see it.
+}
+
 export interface Docs {
   workspace: Workspace
   board: Board
@@ -266,6 +318,7 @@ export interface Docs {
   user: User
   dashboard: Dashboard
   doc: Doc
+  kpi: Kpi
 }
 export type Kind = keyof Docs
-export const KINDS: Kind[] = ['workspace', 'board', 'item', 'update', 'activity', 'notification', 'user', 'dashboard', 'doc']
+export const KINDS: Kind[] = ['workspace', 'board', 'item', 'update', 'activity', 'notification', 'user', 'dashboard', 'doc', 'kpi']

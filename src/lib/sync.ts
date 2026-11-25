@@ -112,7 +112,7 @@ if (env.VITE_FIREBASE_EMULATOR && auth && db) {
  * which keeps daily reads well inside the free quota.
  */
 // Board-scoped kinds: non-admins only ask for what they may read (rules reject broader queries).
-const SCOPED: Kind[] = ['board', 'item', 'update', 'activity', 'doc']
+const SCOPED: Kind[] = ['board', 'item', 'update', 'activity', 'doc', 'kpi']
 
 export function cloudAdapter(fs: Firestore, uid: string, admin = false): Adapter {
   const report = (e: unknown) => {

@@ -1,6 +1,6 @@
 import { Command } from 'cmdk'
 import { AnimatePresence, motion } from 'motion/react'
-import { Archive, LifeBuoy, Briefcase, House, Inbox, LayoutDashboard, Moon, Plus, Search, Sun, CornerDownLeft, Table2 } from 'lucide-react'
+import { Archive, LifeBuoy, Briefcase, House, Inbox, LayoutDashboard, Moon, Plus, Search, Sun, CornerDownLeft, Table2, Target } from 'lucide-react'
 import { addItem, createBoardFromTemplate, isLive, liveGroups, navigate, openItem, setPalette, setTheme, useCanEdit, useStore, visibleItem } from '../lib/store'
 import { TEMPLATES } from '../lib/seed'
 import { Kbd } from './ui'
@@ -14,6 +14,7 @@ export function CommandPalette() {
   const open = useStore((s) => s.paletteOpen)
   const boards = useStore((s) => s.board)
   const items = useStore((s) => s.item)
+  const kpis = useStore((s) => s.kpi)
   const theme = useStore((s) => s.theme)
   const route = useStore((s) => s.route)
   const ws = useStore((s) => Object.values(s.workspace)[0])
@@ -58,6 +59,12 @@ export function CommandPalette() {
                   <Command.Item className={itemCls} onSelect={run(() => navigate({ page: 'my-work' }))}><Briefcase /> My work</Command.Item>
                   <Command.Item className={itemCls} onSelect={run(() => navigate({ page: 'inbox' }))}><Inbox /> Inbox</Command.Item>
                   <Command.Item className={itemCls} onSelect={run(() => navigate({ page: 'dashboards' }))}><LayoutDashboard /> Dashboards</Command.Item>
+                  <Command.Item className={itemCls} onSelect={run(() => navigate({ page: 'kpis' }))}><Target /> KPIs</Command.Item>
+                  {Object.values(kpis).map((k) => (
+                    <Command.Item key={k.id} value={`kpi ${k.name} ${k.id}`} className={itemCls} onSelect={run(() => navigate({ page: 'kpis', id: k.id }))}>
+                      <Target /> {k.name} KPIs
+                    </Command.Item>
+                  ))}
                   <Command.Item className={itemCls} onSelect={run(() => navigate({ page: 'archive' }))}><Archive /> Archive &amp; Trash</Command.Item>
                   <Command.Item className={itemCls} onSelect={run(() => navigate({ page: 'help' }))}><LifeBuoy /> Help</Command.Item>
                   {Object.values(boards).filter(isLive).map((b) => (

@@ -9,9 +9,21 @@ import { Modal } from './TemplateModal'
 import { Avatar, Button, cx } from './ui'
 
 /** Who may change access: the board's creator, or an admin. */
-export const canManageAccess = (b: Board, meId: string, isAdmin: boolean) => isAdmin || b.createdBy === meId
+export const canManageAccess = (b: Pick<Board, 'createdBy'>, meId: string, isAdmin: boolean) => isAdmin || b.createdBy === meId
 
-export function BoardAccess({ board, open, onClose }: { board: Board; open: boolean; onClose: () => void }) {
+type Shared = Pick<Board, 'id' | 'name' | 'readers' | 'createdBy'>
+/** Who sees a board (or, with `onSave`, any other shared document such as a KPI board). */
+export function BoardAccess({
+  board, open, onClose, onSave, title = 'Board access', noun = 'board', privateHint,
+}: {
+  board: Shared
+  open: boolean
+  onClose: () => void
+  onSave?: (readers: string[]) => Promise<void> | void
+  title?: string
+  noun?: string
+  privateHint?: string
+}) {
   const meId = useStore((s) => s.meId)
   const isAdmin = useStore((s) => s.isAdmin)
   const users = useStore((s) => s.user)
@@ -31,7 +43,8 @@ export function BoardAccess({ board, open, onClose }: { board: Board; open: bool
   const save = async () => {
     setBusy(true)
     try {
-      await setBoardAccess(board.id, priv ? [...picked] : PUBLIC, auth ? saveBoardAccess : undefined)
+      const readers = priv ? [...new Set([meId, ...picked])] : PUBLIC
+      await (onSave ? onSave(readers) : setBoardAccess(board.id, readers, auth ? saveBoardAccess : undefined))
       toast.success(priv ? `${board.name} is private` : `${board.name} is open to the whole team`)
       onClose()
     } catch (e) {
@@ -52,10 +65,10 @@ export function BoardAccess({ board, open, onClose }: { board: Board; open: bool
   )
 
   return (
-    <Modal open={open} onClose={onClose} title="Board access" width={520}>
+    <Modal open={open} onClose={onClose} title={title} width={520}>
       <div className="space-y-3 p-6">
-        {option(false, <Users />, 'Whole team', 'Everyone with a login can see this board.')}
-        {option(true, <Lock />, 'Private', 'Only the people you pick can see this board, its items, updates and docs. Admins can always open it.')}
+        {option(false, <Users />, 'Whole team', `Everyone with a login can see this ${noun}.`)}
+        {option(true, <Lock />, 'Private', privateHint ?? 'Only the people you pick can see this board, its items, updates and docs. Admins can always open it.')}
         {priv && (
           <fieldset className="rounded-md border border-line">
             <legend className="caps ml-3 px-1 text-[12px] font-semibold tracking-[0.12em] text-muted">Who can see it</legend>
@@ -82,7 +95,7 @@ export function BoardAccess({ board, open, onClose }: { board: Board; open: bool
             </ul>
           </fieldset>
         )}
-        {!manage && <p className="text-[13px] text-faint">Only the person who made this board, or an admin, can change who sees it.</p>}
+        {!manage && <p className="text-[13px] text-faint">Only the person who made this {noun}, or an admin, can change who sees it.</p>}
       </div>
       {manage && (
         <div className="flex justify-end gap-2 border-t border-line px-6 py-4">

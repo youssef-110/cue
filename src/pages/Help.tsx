@@ -174,6 +174,30 @@ const SECTIONS: Section[] = [
     ),
   },
   {
+    id: 'kpis',
+    title: 'KPI boards',
+    body: (
+      <>
+        <P>
+          <B>KPIs</B> (left rail) hold the numbers the company is steered by on one page: the round, milestones against their targets, revenue, cost, cash and
+          runway, the investor funnel, the sales pipeline, the value of open opportunities, weekly activity, company readiness, and the team with its open roles.
+        </P>
+        <Steps
+          items={[
+            <>Click <B>Edit</B> on a panel to type its numbers into a small table. Amounts accept 2,600, 12k or 1.2M. Changes save as you leave each cell.</>,
+            <>Milestones can count themselves: from firm investor money, the whole round, or the accounts that reached a pipeline stage. The nearest open deadline shows at the top.</>,
+            <>Click a lamp under <B>Company readiness</B> to score an area from 1 to 5.</>,
+            <>Click <B>TV board</B> to show the board full screen as a departure board for the office screen. It updates live and keeps the screen awake. Press Esc to leave.</>,
+          ]}
+        />
+        <P>
+          New KPI boards are <B>private</B> to the person who made them; admins can always open them. Use <B>Share</B> on the yellow band to open one to the whole team or to
+          chosen people. Viewers can read the numbers and the tables behind them, but not change them.
+        </P>
+      </>
+    ),
+  },
+  {
     id: 'import',
     title: 'Importing and exporting',
     body: (

@@ -296,6 +296,9 @@ A deadline reads like a departure: weekday caps (11px faint), day digits (17px s
 ### Cue mark
 A signal-yellow 32-unit tile with 5-unit corners whose ink C is a clock face, the hand pointing into the gap. The wordmark sets "Cue" in Barlow Condensed bold beside it, on ink or paper.
 
+### KPI board (signature)
+The company's numbers set like a station: the yellow band names the KPI board with a mono status line (targets met · late · updated), an ink service-notice strip calls out the nearest open deadline (yellow NEXT DEADLINE tag, red LATE +Nd tag when overdue), and ruled panels follow. Charts use one emphasis mark against slate context: `--chart-hi` is ink on paper and signal yellow in dark, `--chart-lo` slate, `--chart-soft` stone for pending amounts, `--chart-track` the unfilled track. Gauges, donuts and radar charts are deliberately replaced by meters (actual vs target), a 28px segmented bar (round composition), stage ladders (furthest stage on top, names under each bar), five signal lamps per readiness area, and small-multiple weekly columns. Figures are JetBrains Mono. The **TV board** is always the lit departure board (ink ground, signal-yellow name, split-flap tiles for the clock and the round's percent), sized in em from `min(1.02vw, 1.82vh)` so it fills any screen without scrolling.
+
 ### Motion
 - **Flap** (120ms, `cubic-bezier(0.2, 0.7, 0.2, 1)`, from -35% Y and transparent): any value that changes in place.
 - **Popover** (140ms in on the same curve with a 4px drift, 100ms fade out).

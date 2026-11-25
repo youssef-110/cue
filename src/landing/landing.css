@@ -98,31 +98,6 @@ body {
   color: var(--board-mute);
 }
 
-.flap-tile {
-  position: relative;
-  display: inline-grid;
-  place-items: center;
-  width: 1.06em;
-  height: 1.6em;
-  margin-right: 2px;
-  border-radius: 2px;
-  background: var(--board-tile);
-  color: var(--board-text);
-  font-family: var(--font-mono);
-  font-weight: 500;
-  line-height: 1;
-}
-/* the split between the upper and lower flap */
-.flap-tile::after {
-  content: '';
-  position: absolute;
-  inset: 50% 0 auto;
-  height: 1px;
-  background: rgb(0 0 0 / 0.6);
-}
-.flap-tile--narrow {
-  width: 0.6em;
-}
 .board-dep .flap-tile {
   font-size: 19px;
   font-weight: 500;
@@ -131,20 +106,6 @@ body {
   font-size: 14px;
   width: 1.24em;
 }
-.flap-tile--signal {
-  color: var(--signal);
-}
-.flap-tile--gone {
-  color: #7c7b75;
-}
-.flap-tile--alert {
-  background: var(--alert);
-  color: #fff;
-}
-.dark .flap-tile--alert {
-  background: #d3242b;
-}
-
 .board-legend {
   margin-top: 12px;
   padding-top: 12px;

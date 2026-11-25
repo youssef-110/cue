@@ -14,6 +14,7 @@ const ALSO: [string, string?][] = [
   ['Inbox for mentions and changes'],
   ['My work across every board'],
   ['Dashboards across several boards'],
+  ['KPI boards, and a TV board for the office'],
   ['Archive and trash, with restore'],
   ['CSV and Excel import, CSV export'],
   ['Command palette', 'Ctrl K'],

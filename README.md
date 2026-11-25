@@ -40,6 +40,13 @@ The team's hosted workspace is private. There is no public sign-up: the team's a
 - **Files**: every attached file link on the board in one list
 - **Docs**: markdown pages beside the boards, with checklists and links
 
+**KPI boards**
+- The numbers a company is steered by, on one page: the round (government and investor money, soft commits, still open), milestones against their own targets, revenue, cost, cash and runway, the investor funnel, the sales pipeline, opportunities by chance and value, weekly activity, readiness scores, and the team with its open roles
+- Milestones can count themselves from investor money, the whole round, or accounts that reached a pipeline stage; the nearest open deadline is called out at the top
+- Edit any panel in place as a small table; amounts accept 2,600, 12k or 1.2M
+- **TV board**: full screen as a lit departure board with split-flap figures, updating live and keeping the screen awake
+- Private to their maker until shared (admins can always open them), enforced by the Firestore rules
+
 **Working together**
 - Updates on every item, with @mentions, likes and threaded replies
 - Inbox for mentions and changes
@@ -173,15 +180,16 @@ npx vercel --prod
 ├── api/team.ts              # Admin server: create logins, reset passwords, roles, removal
 ├── firestore.rules          # Who can read/write what in team mode
 ├── scripts/build-rules.mjs  # Fills the owner login into the rules before deploy
-├── tests/                   # Rules tests (npm run test:rules) and markdown tests
+├── tests/                   # Rules tests (npm run test:rules), KPI and markdown tests
 ├── src/
 │   ├── main.tsx             # App bootstrap
 │   ├── App.tsx              # App shell and routing between pages
 │   ├── index.css            # Design tokens and global styles (shared by site and app)
 │   ├── components/          # Shared UI: cells, sidebar, automations, team, primitives
 │   ├── views/               # Table, Kanban, Timeline, Calendar, Dashboard and Workload views
-│   ├── pages/               # Board, Docs, My work, Inbox, Archive, sign-in and other pages
-│   ├── lib/                 # Types, store, sync (local and Firebase), team, seed data, CSV
+│   ├── pages/               # Board, Docs, KPIs, My work, Inbox, Archive, sign-in and other pages
+│   ├── kpi/                 # KPI board panels, marks and the TV board
+│   ├── lib/                 # Types, store, sync (local and Firebase), team, KPI model, seed data, CSV
 │   └── landing/             # Website components
 └── .github/workflows/
     └── deploy.yml           # Build and deploy to GitHub Pages

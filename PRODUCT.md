@@ -31,6 +31,7 @@ Owned by the team that uses it: free for every seat, hosted on the team's own fr
 ## Capabilities and Constraints
 
 - Boards, groups, items, subitems, 13+ column types, Table / Kanban / Timeline / Calendar / Dashboard views, updates with mentions, inbox, My work, automations, command palette, CSV import/export, light and dark themes.
+- KPI boards (added 2026-11-25, from a KPI one-pager a co-founder shared as reference): round, milestones vs target, money and runway, investor funnel, sales pipeline, opportunities, weekly activity, readiness, team and hiring, plus a full-screen TV board. Private to their maker until shared. Real figures are typed into the running app, never into the repository.
 - Team mode on Firebase (Spark free plan, project `tideline-97832`, eur3): Firestore + Auth, access enforced by `firestore.rules`.
 - Admin-only account management: create username/password accounts, reset passwords, remove people. Requires a small server-side function because browsers cannot change another user's password.
 - Free-tier only: no paid storage, so file attachments are links, not uploads. No outbound email.

@@ -25,6 +25,7 @@ import {
   LayoutDashboard,
   LifeBuoy,
   Lock,
+  Target,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { archiveBoard, isPrivate, createDoc, createWorkspace, deleteBoard, duplicateBoard, isLive, navigate, setPalette, setTheme, updateBoard, useCanEdit, useStore } from '../lib/store'
@@ -69,7 +70,7 @@ export function Sidebar() {
   const wsList = useMemo(() => Object.values(workspaces).sort((a, b) => a.order - b.order), [workspaces])
   const toggle = () => (setCollapsed(!collapsed), localStorage.setItem('tideline:sidebar', collapsed ? '0' : '1'))
 
-  const nav = (page: 'home' | 'my-work' | 'inbox' | 'dashboards' | 'archive' | 'help', icon: React.ReactNode, label: string, badge?: number) => (
+  const nav = (page: 'home' | 'my-work' | 'inbox' | 'dashboards' | 'kpis' | 'archive' | 'help', icon: React.ReactNode, label: string, badge?: number) => (
     <button
       onClick={() => navigate({ page })}
       data-tour={page}
@@ -132,6 +133,7 @@ export function Sidebar() {
         {nav('my-work', <Briefcase />, 'My work')}
         {nav('inbox', <Inbox />, 'Inbox', unread)}
         {nav('dashboards', <LayoutDashboard />, 'Dashboards')}
+        {nav('kpis', <Target />, 'KPIs')}
         {nav('archive', <Archive />, 'Archive & Trash')}
         {auth && (
           <button onClick={() => setTeamOpen(true)} data-tour="team" title="Team" className={cx('flex h-9 w-full items-center gap-2.5 rounded-md px-2.5 text-[14px] transition-colors [&>svg]:size-[17px] [&>svg]:shrink-0', RAIL_OFF)}>

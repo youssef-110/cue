@@ -21,6 +21,7 @@ import { Tour } from './components/Tour'
 import { ROLE_LABEL } from './components/Roles'
 // recharts-heavy, loaded on demand
 const Dashboards = lazy(() => import('./pages/Dashboards').then((m) => ({ default: m.Dashboards })))
+const Kpis = lazy(() => import('./pages/Kpis').then((m) => ({ default: m.Kpis })))
 
 const LOCAL_ME = 'tideline:me'
 
@@ -140,6 +141,10 @@ export default function App() {
               ) : route.page === 'dashboards' ? (
                 <Suspense fallback={<div className="flex-1 animate-pulse bg-panel-2/40" />}>
                   <Dashboards id={route.id} />
+                </Suspense>
+              ) : route.page === 'kpis' ? (
+                <Suspense fallback={<div className="flex-1 animate-pulse bg-panel-2/40" />}>
+                  <Kpis id={route.id} />
                 </Suspense>
               ) : (
                 <Home />

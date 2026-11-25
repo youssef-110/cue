@@ -37,6 +37,11 @@
   --color-on-ink-muted: var(--on-ink-muted);
   --color-alert: var(--alert);
   --color-alert-soft: var(--alert-soft);
+  --color-chart-hi: var(--chart-hi);
+  --color-on-chart-hi: var(--chart-on-hi);
+  --color-chart-lo: var(--chart-lo);
+  --color-chart-soft: var(--chart-soft);
+  --color-chart-track: var(--chart-track);
 
   --radius-sm: 3px;
   --radius-md: 4px;
@@ -183,6 +188,74 @@ select {
     opacity: 1;
     transform: none;
   }
+}
+
+/* chart marks (KPI boards): one emphasis mark (ink on paper, signal on the dark board) against slate context */
+:root {
+  --chart-hi: #121212;
+  --chart-on-hi: #ffffff;
+  --chart-lo: #8a8a84;
+  --chart-soft: #c9c8bf;
+  --chart-track: #ebeae3;
+}
+.dark {
+  --chart-hi: #f6d11f;
+  --chart-on-hi: #121212;
+  --chart-lo: #7d7c75;
+  --chart-soft: #4a4a44;
+  --chart-track: #2a2a26;
+}
+
+/* split-flap tiles: the landing's departure board and the KPI TV board */
+.flap-tile {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 1.06em;
+  height: 1.6em;
+  margin-right: 2px;
+  border-radius: 2px;
+  background: var(--board-tile);
+  color: var(--board-text);
+  font-family: var(--font-mono);
+  font-weight: 500;
+  line-height: 1;
+}
+/* the split between the upper and lower flap */
+.flap-tile::after {
+  content: '';
+  position: absolute;
+  inset: 50% 0 auto;
+  height: 1px;
+  background: rgb(0 0 0 / 0.6);
+}
+.flap-tile--narrow {
+  width: 0.6em;
+}
+.flap-tile--signal {
+  color: var(--signal);
+}
+.flap-tile--gone {
+  color: #7c7b75;
+}
+.flap-tile--alert {
+  background: var(--alert);
+  color: #fff;
+}
+.dark .flap-tile--alert {
+  background: #d3242b;
+}
+
+/* KPI TV board: always a lit departure board; every size is in em, so it scales with the screen */
+.tv {
+  --board-bg: #0b0b0a;
+  --board-tile: #1d1d1b;
+  --board-rule: #2c2c29;
+  --board-text: #f4f3ee;
+  --board-mute: #a9a8a0;
+  font-size: min(1.02vw, 1.82vh);
+  background: var(--board-bg);
+  color: var(--board-text);
 }
 
 .label-fill {

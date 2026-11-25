@@ -92,7 +92,7 @@ service cloud.firestore {
     match /{kind}/{id} {
       allow read: if isMember() && (
         kind in ['workspace', 'user', 'dashboard']
-        || (kind in ['board', 'item', 'update', 'activity', 'doc'] && canSee(resource.data))
+        || (kind in ['board', 'item', 'update', 'activity', 'doc', 'kpi'] && canSee(resource.data))
       );
     }
     match /workspace/{id} {
@@ -122,6 +122,18 @@ service cloud.firestore {
       allow create: if canEdit() && idMatches(id);
       allow update: if canEdit() && keepsOwnership();
       allow delete: if canEdit();
+    }
+    // KPI boards (fundraise, money, pipeline, team): private to their maker until shared.
+    // Unlike boards they are one document, so the maker or an admin changes `readers` here directly,
+    // and nobody can write themselves out of a board they keep editing.
+    function readersOk(d) {
+      return d.readers == ['*'] || (d.readers is list && d.readers.size() > 0 && d.readers.size() <= 100 && (isAdmin() || uid() in d.readers));
+    }
+    match /kpi/{id} {
+      allow create: if canEdit() && idMatches(id) && request.resource.data.createdBy == uid() && readersOk(request.resource.data);
+      allow update: if canEdit() && keepsOwnership() && canSee(resource.data) && readersOk(request.resource.data)
+        && (keeps('readers') || isAdmin() || resource.data.createdBy == uid());
+      allow delete: if canEdit() && canSee(resource.data) && (isAdmin() || resource.data.createdBy == uid());
     }
 
     // ---------- personal rows ----------

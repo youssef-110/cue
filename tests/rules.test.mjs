@@ -149,3 +149,37 @@ test('private boards: only their readers (and admins) see or touch them', async 
   await assertSucceeds(deleteDoc(doc(bo(), 'board/new')))
   await assertSucceeds(deleteDoc(doc(ada(), 'board/b1')))
 })
+
+test('KPI boards: private to their maker until shared; only the maker or an admin changes access', async () => {
+  const kpi = (id, createdBy, readers, extra = {}) => ({ id, name: 'KPIs', createdBy, readers, investors: [], ...extra })
+  // nobody creates one for someone else, or one they could not read back
+  await assertFails(setDoc(doc(bo(), 'kpi/k1'), kpi('k1', 'ada', ['bo'])))
+  await assertFails(setDoc(doc(bo(), 'kpi/k1'), kpi('k1', 'bo', ['ada'])))
+  await assertFails(setDoc(doc(vi(), 'kpi/kv'), kpi('kv', 'vi', ['vi'])))
+  await assertSucceeds(setDoc(doc(bo(), 'kpi/k1'), kpi('k1', 'bo', ['bo'])))
+  // private: the maker and admins read it, the rest of the team does not
+  await assertSucceeds(getDoc(doc(bo(), 'kpi/k1')))
+  await assertSucceeds(getDoc(doc(ada(), 'kpi/k1')))
+  await assertFails(getDoc(doc(vi(), 'kpi/k1')))
+  await assertFails(getDoc(doc(eve(), 'kpi/k1')))
+  await assertFails(getDocs(collection(vi(), 'kpi')))
+  const seen = await assertSucceeds(getDocs(query(collection(vi(), 'kpi'), where('readers', 'array-contains-any', ['*', 'vi']))))
+  if (seen.size !== 0) throw new Error('viewer saw a private KPI board')
+  // the maker shares it with vi (viewer: reads, never writes)
+  await assertSucceeds(updateDoc(doc(bo(), 'kpi/k1'), { readers: ['bo', 'vi'] }))
+  await assertSucceeds(getDoc(doc(vi(), 'kpi/k1')))
+  await assertFails(updateDoc(doc(vi(), 'kpi/k1'), { name: 'x' }))
+  // makers cannot lock themselves out; ownership never moves
+  await assertFails(updateDoc(doc(bo(), 'kpi/k1'), { readers: ['vi'] }))
+  await assertFails(updateDoc(doc(bo(), 'kpi/k1'), { createdBy: 'ada' }))
+  // open to the team: any editor edits numbers, but only the maker or an admin changes access or deletes
+  await assertSucceeds(updateDoc(doc(bo(), 'kpi/k1'), { readers: ['*'] }))
+  await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), 'members/cy'), { uid: 'cy', username: 'cy', name: 'Cy', role: 'member', addedBy: 'ada', addedAt: 5 }))
+  const cy = () => as('cy', 'cy@cue.invalid')
+  await assertSucceeds(updateDoc(doc(cy(), 'kpi/k1'), { investors: [{ id: 'i', name: 'Fund', stage: 's' }] }))
+  await assertFails(updateDoc(doc(cy(), 'kpi/k1'), { readers: ['bo'] }))
+  await assertFails(deleteDoc(doc(cy(), 'kpi/k1')))
+  await assertSucceeds(updateDoc(doc(ada(), 'kpi/k1'), { readers: ['bo'] }))
+  await assertFails(getDoc(doc(cy(), 'kpi/k1')))
+  await assertSucceeds(deleteDoc(doc(ada(), 'kpi/k1')))
+})
