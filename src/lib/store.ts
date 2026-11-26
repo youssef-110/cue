@@ -760,5 +760,6 @@ export function changeEvents(save: CalEvent[], drop: CalEvent[] = [], message?: 
 /** Deletes an event; a series takes the dates split off it along. */
 export function deleteEvent(id: string) {
   const e = get().event[id]
-  if (e) changeEvents([], [e, ...Object.values(get().event).filter((x) => x.seriesId === id)], `Deleted “${e.title}”`)
+  // only your own split-offs: anyone can point a seriesId at your series, and that must not block your delete
+  if (e) changeEvents([], [e, ...Object.values(get().event).filter((x) => x.seriesId === id && x.ownerId === e.ownerId)], `Deleted “${e.title}”`)
 }

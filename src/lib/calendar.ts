@@ -70,10 +70,17 @@ export function occurrences(events: CalEvent[], from: string, to: string, viewTz
   const endBound = addDays(to, 1) + 'T00:00'
   const startBound = from + 'T00:00'
   for (const ev of events) {
-    const span = dayDiff(ev.end, ev.start)
+    try {
+      expand(ev)
+    } catch {
+      // a malformed event (unknown zone, bad dates) is skipped rather than breaking the whole calendar
+    }
+  }
+  function expand(ev: CalEvent) {
+    const span = Math.min(62, Math.max(0, dayDiff(ev.end, ev.start)))
     if (ev.allDay) {
       for (const d of datesOf(ev, addDays(from, -span), to)) out.push({ ev, key: d, start: d + 'T00:00', end: addDays(d, span) + 'T23:59' })
-      continue
+      return
     }
     const sMin = minutesOf(ev.start)
     const length = wallDiff(ev.end, ev.start)

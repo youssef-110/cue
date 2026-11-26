@@ -118,7 +118,8 @@ export function EventEditor({ draft, isNew, onSave, onClose }: { draft: CalEvent
   const date = (w: string) => w.slice(0, 10)
   const time = (w: string) => w.slice(11, 16)
   const days = e.repeat?.days ?? []
-  const bad = e.end < e.start
+  const tooLong = dayDiff(e.end, e.start) > 62 // the rules cap an event at 62 days
+  const bad = e.end < e.start || tooLong
   const save = () => !bad && onSave(e)
 
   // moving the start keeps the length, like a calendar should
@@ -172,7 +173,7 @@ export function EventEditor({ draft, isNew, onSave, onClose }: { draft: CalEvent
               />
             )}
           </Row>
-          {bad && <p className="pl-[76px] text-[12.5px] text-alert">The event ends before it starts.</p>}
+          {bad && <p className="pl-[76px] text-[12.5px] text-alert">{tooLong ? 'An event can last up to 62 days.' : 'The event ends before it starts.'}</p>}
           <Row label="">
             <label className="flex h-8 items-center gap-2 text-[13.5px]">
               <input type="checkbox" checked={!!e.allDay} onChange={(ev) => toggleAllDay(ev.target.checked)} className="size-4" />

@@ -85,6 +85,11 @@ test('all-day events float and span days; timed events crossing midnight split i
   assert.equal(toMidnight.length, 0)
 })
 
+test('a malformed event is skipped, not fatal for the whole calendar', () => {
+  const broken = ev({ id: 'bad', tz: 'Not/AZone' })
+  assert.deepEqual(occurrences([broken, classes], '2026-11-23', '2026-11-23', LUX).map((o) => o.ev.id), ['e'])
+})
+
 test('overlapping events sit side by side; chained overlaps share a cluster', () => {
   const placed = (segs) => layoutDay(segs).map((s) => `${s.id}:${s.col}/${s.cols}`).sort()
   // the Friday: Classes 08:00-16:30 and the Hackathon from 14:00

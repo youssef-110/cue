@@ -139,11 +139,25 @@ service cloud.firestore {
     // ---------- calendar ----------
     // Everyone on the team sees everyone's schedule; each person creates, changes and deletes
     // only their own events, and an event never changes owner. Viewers only read.
+    // Everything an event may carry, checked at the door: one malformed event must not break the calendar for everyone.
     function eventOk(d) {
-      let wall = '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}$';
-      return d.title is string && d.title.size() > 0 && d.title.size() <= 200
+      let wall = '^20[0-9]{2}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}$';
+      let date = '^20[0-9]{2}-[0-9]{2}-[0-9]{2}$';
+      let r = d.get('repeat', null);
+      return d.keys().hasOnly(['id', 'ownerId', 'title', 'start', 'end', 'allDay', 'tz', 'repeat', 'exceptions', 'seriesId', 'notes', 'location', 'createdAt', 'updatedAt'])
+        && d.title is string && d.title.size() > 0 && d.title.size() <= 200
         && d.start is string && d.start.matches(wall)
-        && d.end is string && d.end.matches(wall) && d.end >= d.start;
+        && d.end is string && d.end.matches(wall) && d.end >= d.start
+        // at most 62 days long
+        && timestamp.value(d.end + ':00Z') - timestamp.value(d.start + ':00Z') <= duration.value(62, 'd')
+        && d.tz is string && d.tz.size() <= 64 && d.tz.matches('^[A-Za-z][A-Za-z0-9_+/-]*$')
+        && (r == null || (r is map && r.keys().hasOnly(['days', 'until'])
+          && r.days is list && r.days.size() > 0 && r.days.size() <= 7 && r.days.hasOnly([0, 1, 2, 3, 4, 5, 6])
+          && (r.get('until', null) == null || (r.until is string && r.until.matches(date)))))
+        && (d.get('exceptions', null) == null || (d.exceptions is list && d.exceptions.size() <= 500))
+        && (d.get('seriesId', null) == null || (d.seriesId is string && d.seriesId.size() <= 64))
+        && (d.get('notes', null) == null || (d.notes is string && d.notes.size() <= 5000))
+        && (d.get('location', null) == null || (d.location is string && d.location.size() <= 500));
     }
     match /event/{id} {
       allow create: if canEdit() && idMatches(id) && request.resource.data.ownerId == uid() && eventOk(request.resource.data);
