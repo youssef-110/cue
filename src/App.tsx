@@ -22,6 +22,7 @@ import { ROLE_LABEL } from './components/Roles'
 // recharts-heavy, loaded on demand
 const Dashboards = lazy(() => import('./pages/Dashboards').then((m) => ({ default: m.Dashboards })))
 const Kpis = lazy(() => import('./pages/Kpis').then((m) => ({ default: m.Kpis })))
+const CalendarPage = lazy(() => import('./pages/Calendar').then((m) => ({ default: m.CalendarPage })))
 
 const LOCAL_ME = 'tideline:me'
 
@@ -91,7 +92,8 @@ export default function App() {
       }
       if (typing || e.metaKey || e.ctrlKey || e.altKey) return
       if (e.key === 'Escape') openItem(null)
-      if (e.key.toLowerCase() === 'd') setTheme(useStore.getState().theme === 'dark' ? 'light' : 'dark')
+      // the calendar uses D for its day view
+      if (e.key.toLowerCase() === 'd' && useStore.getState().route.page !== 'calendar') setTheme(useStore.getState().theme === 'dark' ? 'light' : 'dark')
       if (e.key === '/') {
         e.preventDefault()
         document.querySelector<HTMLInputElement>('[data-board-search]')?.focus()
@@ -141,6 +143,10 @@ export default function App() {
               ) : route.page === 'dashboards' ? (
                 <Suspense fallback={<div className="flex-1 animate-pulse bg-panel-2/40" />}>
                   <Dashboards id={route.id} />
+                </Suspense>
+              ) : route.page === 'calendar' ? (
+                <Suspense fallback={<div className="flex-1 animate-pulse bg-panel-2/40" />}>
+                  <CalendarPage />
                 </Suspense>
               ) : route.page === 'kpis' ? (
                 <Suspense fallback={<div className="flex-1 animate-pulse bg-panel-2/40" />}>

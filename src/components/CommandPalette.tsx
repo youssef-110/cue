@@ -1,6 +1,6 @@
 import { Command } from 'cmdk'
 import { AnimatePresence, motion } from 'motion/react'
-import { Archive, LifeBuoy, Briefcase, House, Inbox, LayoutDashboard, Moon, Plus, Search, Sun, CornerDownLeft, Table2, Target } from 'lucide-react'
+import { Archive, CalendarDays, LifeBuoy, Briefcase, House, Inbox, LayoutDashboard, Moon, Plus, Search, Sun, CornerDownLeft, Table2, Target } from 'lucide-react'
 import { addItem, createBoardFromTemplate, isLive, liveGroups, navigate, openItem, setPalette, setTheme, useCanEdit, useStore, visibleItem } from '../lib/store'
 import { TEMPLATES } from '../lib/seed'
 import { Kbd } from './ui'
@@ -58,6 +58,7 @@ export function CommandPalette() {
                   <Command.Item className={itemCls} onSelect={run(() => navigate({ page: 'home' }))}><House /> Home</Command.Item>
                   <Command.Item className={itemCls} onSelect={run(() => navigate({ page: 'my-work' }))}><Briefcase /> My work</Command.Item>
                   <Command.Item className={itemCls} onSelect={run(() => navigate({ page: 'inbox' }))}><Inbox /> Inbox</Command.Item>
+                  <Command.Item className={itemCls} onSelect={run(() => navigate({ page: 'calendar' }))}><CalendarDays /> Calendar</Command.Item>
                   <Command.Item className={itemCls} onSelect={run(() => navigate({ page: 'dashboards' }))}><LayoutDashboard /> Dashboards</Command.Item>
                   <Command.Item className={itemCls} onSelect={run(() => navigate({ page: 'kpis' }))}><Target /> KPIs</Command.Item>
                   {Object.values(kpis).map((k) => (

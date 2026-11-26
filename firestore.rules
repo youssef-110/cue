@@ -91,7 +91,7 @@ service cloud.firestore {
 
     match /{kind}/{id} {
       allow read: if isMember() && (
-        kind in ['workspace', 'user', 'dashboard']
+        kind in ['workspace', 'user', 'dashboard', 'event']
         || (kind in ['board', 'item', 'update', 'activity', 'doc', 'kpi'] && canSee(resource.data))
       );
     }
@@ -134,6 +134,21 @@ service cloud.firestore {
       allow update: if canEdit() && keepsOwnership() && canSee(resource.data) && readersOk(request.resource.data)
         && (keeps('readers') || isAdmin() || resource.data.createdBy == uid());
       allow delete: if canEdit() && canSee(resource.data) && (isAdmin() || resource.data.createdBy == uid());
+    }
+
+    // ---------- calendar ----------
+    // Everyone on the team sees everyone's schedule; each person creates, changes and deletes
+    // only their own events, and an event never changes owner. Viewers only read.
+    function eventOk(d) {
+      let wall = '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}$';
+      return d.title is string && d.title.size() > 0 && d.title.size() <= 200
+        && d.start is string && d.start.matches(wall)
+        && d.end is string && d.end.matches(wall) && d.end >= d.start;
+    }
+    match /event/{id} {
+      allow create: if canEdit() && idMatches(id) && request.resource.data.ownerId == uid() && eventOk(request.resource.data);
+      allow update: if canEdit() && resource.data.ownerId == uid() && keeps('ownerId') && idMatches(id) && eventOk(request.resource.data);
+      allow delete: if canEdit() && resource.data.ownerId == uid();
     }
 
     // ---------- personal rows ----------

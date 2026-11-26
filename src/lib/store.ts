@@ -3,7 +3,7 @@ import { toast } from 'sonner'
 import { auth, emptySnapshot, type Adapter, type Snapshot } from './sync'
 import { startOfWeek } from 'date-fns'
 import { iso, scheduledItemId, slotsToCreate, weekdaysToCreate } from './schedule'
-import type { Activity, Automation, AutomationAction, Board, CellValue, Column, Doc, Docs, Group, Item, Kind, Kpi, Label, User, View, Workspace } from './types'
+import type { Activity, Automation, AutomationAction, Board, CalEvent, CellValue, Column, Doc, Docs, Group, Item, Kind, Kpi, Label, User, View, Workspace } from './types'
 import { exampleKpi, newKpi } from './kpi'
 import { COLORS, COLOR_LIST, DEMO_USERS, TEMPLATES, dayOffset, priorityLabels, statusLabels, today, uid } from './seed'
 
@@ -14,6 +14,7 @@ export type Route =
   | { page: 'board'; boardId: string; viewId?: string } // viewId 'doc' = the board's doc tab
   | { page: 'dashboards'; id?: string }
   | { page: 'kpis'; id?: string }
+  | { page: 'calendar' }
   | { page: 'archive' }
   | { page: 'doc'; id: string }
   | { page: 'help' }
@@ -52,6 +53,7 @@ function parseHash(): Route {
   if (page === 'dashboards') return { page: 'dashboards', id: id || undefined }
   if (page === 'kpis') return { page: 'kpis', id: id || undefined }
   if (page === 'doc' && id) return { page: 'doc', id }
+  if (page === 'calendar') return { page: 'calendar' }
   if (page === 'archive') return { page: 'archive' }
   if (page === 'my-work') return { page: 'my-work' }
   if (page === 'inbox') return { page: 'inbox' }
@@ -734,4 +736,29 @@ export function deleteKpi(id: string) {
   remove('kpi', id)
   navigate({ page: 'kpis' })
   toast(`Deleted “${k.name}”`)
+}
+
+// ---------- calendar ----------
+/** Everyone sees every event; only its owner changes it (the rules enforce the same). */
+export const canEditEvent = (e?: CalEvent) => !!e && canEdit() && e.ownerId === get().meId
+/** Saves and deletes your events in one step; with a message, the toast offers Undo. */
+export function changeEvents(save: CalEvent[], drop: CalEvent[] = [], message?: string) {
+  const all = get().event
+  if (![...save, ...drop].every((e) => canEditEvent(all[e.id] ?? e))) return void toast.error('Only its owner can change this event', { id: 'event-owner' })
+  const before = save.map((e) => all[e.id])
+  const now = Date.now()
+  save.forEach((e) => put('event', { ...e, title: e.title.trim() || '(No title)', updatedAt: now }))
+  drop.forEach((e) => remove('event', e.id))
+  if (message)
+    toast(message, {
+      action: {
+        label: 'Undo',
+        onClick: () => (save.forEach((e, i) => (before[i] ? put('event', before[i]) : remove('event', e.id))), drop.forEach((e) => put('event', e))),
+      },
+    })
+}
+/** Deletes an event; a series takes the dates split off it along. */
+export function deleteEvent(id: string) {
+  const e = get().event[id]
+  if (e) changeEvents([], [e, ...Object.values(get().event).filter((x) => x.seriesId === id)], `Deleted “${e.title}”`)
 }

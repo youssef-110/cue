@@ -26,6 +26,7 @@ import {
   LifeBuoy,
   Lock,
   Target,
+  CalendarDays,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { archiveBoard, isPrivate, createDoc, createWorkspace, deleteBoard, duplicateBoard, isLive, navigate, setPalette, setTheme, updateBoard, useCanEdit, useStore } from '../lib/store'
@@ -70,7 +71,7 @@ export function Sidebar() {
   const wsList = useMemo(() => Object.values(workspaces).sort((a, b) => a.order - b.order), [workspaces])
   const toggle = () => (setCollapsed(!collapsed), localStorage.setItem('tideline:sidebar', collapsed ? '0' : '1'))
 
-  const nav = (page: 'home' | 'my-work' | 'inbox' | 'dashboards' | 'kpis' | 'archive' | 'help', icon: React.ReactNode, label: string, badge?: number) => (
+  const nav = (page: 'home' | 'my-work' | 'inbox' | 'calendar' | 'dashboards' | 'kpis' | 'archive' | 'help', icon: React.ReactNode, label: string, badge?: number) => (
     <button
       onClick={() => navigate({ page })}
       data-tour={page}
@@ -132,6 +133,7 @@ export function Sidebar() {
         {nav('home', <House />, 'Home')}
         {nav('my-work', <Briefcase />, 'My work')}
         {nav('inbox', <Inbox />, 'Inbox', unread)}
+        {nav('calendar', <CalendarDays />, 'Calendar')}
         {nav('dashboards', <LayoutDashboard />, 'Dashboards')}
         {nav('kpis', <Target />, 'KPIs')}
         {nav('archive', <Archive />, 'Archive & Trash')}

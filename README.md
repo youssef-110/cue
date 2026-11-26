@@ -48,6 +48,13 @@ The team's hosted workspace is private. There is no public sign-up: the team's a
 - **TV board**: full screen as a lit departure board with split-flap figures, updating live and keeping the screen awake
 - Private to their maker until shared (admins can always open them), enforced by the Firestore rules
 
+**Calendar**
+- The team's schedule in one place, in Day, Week and Month views, with a line for now and overlapping events side by side
+- Drag to create (snaps to 15 minutes), drag to move, drag the bottom edge to resize, and delete with undo
+- Weekly repeats on chosen weekdays with an optional end date; changing one date asks "this event" or "all events"
+- Everyone sees everyone's events, each person in their own colour, with a per-person filter; you edit only your own, enforced by the Firestore rules
+- Times keep their wall clock across daylight-saving changes and show in each viewer's own time zone
+
 **Working together**
 - Updates on every item, with @mentions, likes and threaded replies
 - Inbox for mentions and changes
@@ -155,7 +162,9 @@ npx vercel --prod
 | <kbd>N</kbd> | New item |
 | <kbd>/</kbd> | Search |
 | <kbd>Esc</kbd> | Close the open panel |
-| <kbd>D</kbd> | Toggle light and dark theme |
+| <kbd>D</kbd> | Toggle light and dark theme (in the calendar: day view) |
+| <kbd>C</kbd> / <kbd>T</kbd> / <kbd>W</kbd> / <kbd>M</kbd> | Calendar: create, today, week, month |
+| <kbd>J</kbd> <kbd>K</kbd> or <kbd>←</kbd> <kbd>→</kbd> | Calendar: next and previous |
 
 ## Tech stack
 
@@ -181,16 +190,17 @@ npx vercel --prod
 ├── api/team.ts              # Admin server: create logins, reset passwords, roles, removal
 ├── firestore.rules          # Who can read/write what in team mode
 ├── scripts/build-rules.mjs  # Fills the owner login into the rules before deploy
-├── tests/                   # Rules tests (npm run test:rules), KPI and markdown tests
+├── tests/                   # Rules tests (npm run test:rules), KPI, calendar and markdown tests
 ├── src/
 │   ├── main.tsx             # App bootstrap
 │   ├── App.tsx              # App shell and routing between pages
 │   ├── index.css            # Design tokens and global styles (shared by site and app)
 │   ├── components/          # Shared UI: cells, sidebar, automations, team, primitives
 │   ├── views/               # Table, Kanban, Timeline, Calendar, Dashboard and Workload views
-│   ├── pages/               # Board, Docs, KPIs, My work, Inbox, Archive, sign-in and other pages
+│   ├── pages/               # Board, Calendar, Docs, KPIs, My work, Inbox, Archive, sign-in and other pages
 │   ├── kpi/                 # KPI board panels, marks and the TV board
-│   ├── lib/                 # Types, store, sync (local and Firebase), team, KPI model, seed data, CSV
+│   ├── calendar/            # Team calendar: time grid, month view, event editor
+│   ├── lib/                 # Types, store, sync (local and Firebase), team, KPI and calendar models, seed data, CSV
 │   └── landing/             # Website components
 └── .github/workflows/
     └── deploy.yml           # Build and deploy to GitHub Pages

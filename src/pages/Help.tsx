@@ -31,7 +31,10 @@ const SHORTCUTS: [string, string][] = [
   ['/', 'Search the current board'],
   ['Ctrl Z', 'Undo your last cell edit or rename'],
   ['Esc', 'Close the open item'],
-  ['D', 'Switch light and dark'],
+  ['D', 'Switch light and dark (in the calendar: day view)'],
+  ['C', 'Calendar: create an event'],
+  ['T · W · M', 'Calendar: today, week view, month view'],
+  ['J K or ← →', 'Calendar: previous and next'],
 ]
 
 const SECTIONS: Section[] = [
@@ -169,6 +172,31 @@ const SECTIONS: Section[] = [
         <P>
           <B>Docs</B> are pages for notes, plans and meeting minutes. Create one with <B>Doc</B> under a workspace, or open the <B>Doc</B> tab on a board to keep
           its notes next to the work. Docs support headings, lists, checklists and links.
+        </P>
+      </>
+    ),
+  },
+  {
+    id: 'calendar',
+    title: 'Calendar',
+    body: (
+      <>
+        <P>
+          <B>Calendar</B> (left rail) is the team’s schedule in one place. Everyone sees everyone’s events, each person in their own colour. You create and change
+          only your own; a teammate’s event opens read-only.
+        </P>
+        <Steps
+          items={[
+            <>Drag down the grid to create an event (it snaps to 15 minutes), click an empty slot for a one-hour event, or press <B>Create</B> or <Kbd>C</Kbd>.</>,
+            <>Click an event to see it. Drag your own events to move them, or drag their bottom edge to change when they end. A move can be undone from the message that appears.</>,
+            <>Set <B>Repeat</B> to <B>Weekly</B> and pick the days, with an optional end date. Moving, changing or deleting one date of a repeating event asks whether you mean <B>this event</B> or <B>all events</B>.</>,
+            <>Under <B>Team calendars</B>, untick a person to hide their events, or click <B>Only</B> to see just one person.</>,
+            <>Switch between <B>Day</B>, <B>Week</B> and <B>Month</B> with the tabs or <Kbd>D</Kbd> <Kbd>W</Kbd> <Kbd>M</Kbd>. Move with the arrows or <Kbd>J</Kbd> <Kbd>K</Kbd>, and press <Kbd>T</Kbd> for today. On a phone the calendar shows one day at a time.</>,
+          ]}
+        />
+        <P>
+          Times are kept in the time zone you created the event in, so a weekly 08:00 stays at 08:00 when the clocks change. Teammates in another time zone see it
+          in their own time. Viewers can read the calendar but not add to it.
         </P>
       </>
     ),

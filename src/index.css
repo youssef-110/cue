@@ -72,6 +72,8 @@
   --on-ink-muted: #a9a8a0;
   --alert: #d3242b;
   --alert-soft: #fbe6e6;
+  --cal-tint: 16%; /* a person's colour as a calendar event fill */
+  --cal-tint-strong: 30%;
   color-scheme: light;
 }
 
@@ -94,6 +96,8 @@
   --on-ink-muted: #9a998f;
   --alert: #f0565c;
   --alert-soft: #3a1c1d;
+  --cal-tint: 30%;
+  --cal-tint-strong: 46%;
   color-scheme: dark;
 }
 

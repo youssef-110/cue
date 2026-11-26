@@ -319,6 +319,24 @@ export interface Kpi {
   readers: Readers // private by default: [creator]; ['*'] = the whole team. Admins always see it.
 }
 
+/** A calendar event. Times are wall-clock times in `tz`; the whole team sees everyone's, only the owner changes them. */
+export interface CalEvent {
+  id: string
+  ownerId: string
+  title: string
+  start: string // 'yyyy-MM-ddTHH:mm' in `tz`; all-day: the first day at 00:00
+  end: string // same; all-day: the last day at 23:59
+  allDay?: boolean
+  tz: string // IANA zone of the browser it was saved from
+  repeat?: { days: number[]; until?: string } // weekly on these weekdays (0 = Sunday), until this date (inclusive)
+  exceptions?: string[] // dates (yyyy-MM-dd, event zone) dropped from the series
+  seriesId?: string // one date split off a series by a "this event" edit; deleted with the series
+  notes?: string
+  location?: string
+  createdAt: number
+  updatedAt: number
+}
+
 export interface Docs {
   workspace: Workspace
   board: Board
@@ -330,6 +348,7 @@ export interface Docs {
   dashboard: Dashboard
   doc: Doc
   kpi: Kpi
+  event: CalEvent
 }
 export type Kind = keyof Docs
-export const KINDS: Kind[] = ['workspace', 'board', 'item', 'update', 'activity', 'notification', 'user', 'dashboard', 'doc', 'kpi']
+export const KINDS: Kind[] = ['workspace', 'board', 'item', 'update', 'activity', 'notification', 'user', 'dashboard', 'doc', 'kpi', 'event']

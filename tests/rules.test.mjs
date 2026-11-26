@@ -183,3 +183,36 @@ test('KPI boards: private to their maker until shared; only the maker or an admi
   await assertFails(getDoc(doc(cy(), 'kpi/k1')))
   await assertSucceeds(deleteDoc(doc(ada(), 'kpi/k1')))
 })
+
+test('calendar: the whole team reads every event; each person writes only their own', async () => {
+  const ev = (id, ownerId, extra = {}) => ({ id, ownerId, title: 'Classes', start: '2026-11-23T08:00', end: '2026-11-23T16:30', tz: 'Europe/Luxembourg', repeat: { days: [1, 3, 5] }, ...extra })
+  // nobody creates an event for someone else, and viewers create none
+  await assertFails(setDoc(doc(bo(), 'event/e1'), ev('e1', 'ada')))
+  await assertFails(setDoc(doc(vi(), 'event/ev'), ev('ev', 'vi')))
+  await assertFails(setDoc(doc(eve(), 'event/ee'), ev('ee', 'eve')))
+  await assertSucceeds(setDoc(doc(bo(), 'event/e1'), ev('e1', 'bo')))
+  await assertSucceeds(setDoc(doc(ada(), 'event/e2'), ev('e2', 'ada', { title: 'Hackathon', start: '2026-11-27T14:00', end: '2026-11-27T22:30', repeat: null })))
+  // everyone on the team sees both, with the plain (unfiltered) query the app uses; strangers see nothing
+  for (const db of [ada(), bo(), vi()]) {
+    const all = await assertSucceeds(getDocs(collection(db, 'event')))
+    if (all.size !== 2) throw new Error('expected both events, saw ' + all.size)
+  }
+  await assertFails(getDoc(doc(eve(), 'event/e1')))
+  await assertFails(getDocs(collection(env.unauthenticatedContext().firestore(), 'event')))
+  // the owner edits, adds exceptions and deletes; nobody else does, not even an admin
+  await assertSucceeds(updateDoc(doc(bo(), 'event/e1'), { exceptions: ['2026-11-25'] }))
+  await assertFails(updateDoc(doc(ada(), 'event/e1'), { title: 'Mine' }))
+  await assertFails(updateDoc(doc(vi(), 'event/e1'), { title: 'x' }))
+  await assertFails(updateDoc(doc(bo(), 'event/e2'), { title: 'x' }))
+  await assertFails(deleteDoc(doc(ada(), 'event/e1')))
+  // ownership never moves
+  await assertFails(updateDoc(doc(bo(), 'event/e1'), { ownerId: 'ada' }))
+  // shape is checked at the door
+  await assertFails(setDoc(doc(bo(), 'event/bad1'), ev('bad1', 'bo', { title: '' })))
+  await assertFails(setDoc(doc(bo(), 'event/bad2'), ev('bad2', 'bo', { start: '2026-11-23 08:00' })))
+  await assertFails(setDoc(doc(bo(), 'event/bad3'), ev('bad3', 'bo', { end: '2026-11-22T08:00' })))
+  await assertFails(setDoc(doc(bo(), 'event/bad4'), ev('other', 'bo')))
+  await assertFails(updateDoc(doc(bo(), 'event/e1'), { end: '2026-11-01T00:00' }))
+  await assertSucceeds(deleteDoc(doc(bo(), 'event/e1')))
+  await assertSucceeds(deleteDoc(doc(ada(), 'event/e2')))
+})
