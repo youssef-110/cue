@@ -114,7 +114,8 @@ function IconBtn({ label, onClick, children, danger, autoFocus }: { label: strin
 /** Create or edit: title, when (or all day), weekly repeat, place and notes. Works in the viewer's wall time. */
 export function EventEditor({ draft, isNew, onSave, onClose }: { draft: CalEvent; isNew: boolean; onSave: (e: CalEvent) => void; onClose: () => void }) {
   const [e, setE] = useState(draft)
-  const set = (patch: Partial<CalEvent>) => setE({ ...e, ...patch })
+  // merge into the latest copy, not this render's: several changes can land before a re-render (autofill, fast input)
+  const set = (patch: Partial<CalEvent> | ((x: CalEvent) => Partial<CalEvent>)) => setE((x) => ({ ...x, ...(typeof patch === 'function' ? patch(x) : patch) }))
   const date = (w: string) => w.slice(0, 10)
   const time = (w: string) => w.slice(11, 16)
   const days = e.repeat?.days ?? []
@@ -123,9 +124,15 @@ export function EventEditor({ draft, isNew, onSave, onClose }: { draft: CalEvent
   const save = () => !bad && onSave(e)
 
   // moving the start keeps the length, like a calendar should
-  const setStart = (start: string) => set({ start, end: e.allDay ? addDays(start, dayDiff(e.end, e.start)) + 'T23:59' : shiftWall(start, wallDiff(e.end, e.start)) })
+  const setStart = (to: (x: CalEvent) => string) =>
+    set((x) => {
+      const start = to(x)
+      return { start, end: x.allDay ? addDays(start, dayDiff(x.end, x.start)) + 'T23:59' : shiftWall(start, wallDiff(x.end, x.start)) }
+    })
   const toggleAllDay = (allDay: boolean) =>
-    set(allDay ? { allDay, start: date(e.start) + 'T00:00', end: date(e.end) + 'T23:59' } : { allDay: undefined, start: date(e.start) + 'T09:00', end: date(e.start) + 'T10:00' })
+    set((x) => (allDay ? { allDay, start: date(x.start) + 'T00:00', end: date(x.end) + 'T23:59' } : { allDay: undefined, start: date(x.start) + 'T09:00', end: date(x.start) + 'T10:00' }))
+  // read the input now; apply it to whatever the latest copy is
+  const value = (fn: (v: string) => void) => (ev: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => fn(ev.target.value)
 
   return (
     <Modal open onClose={onClose} width={520} title={isNew ? 'New event' : 'Edit event'}>
@@ -147,9 +154,9 @@ export function EventEditor({ draft, isNew, onSave, onClose }: { draft: CalEvent
         <fieldset className="space-y-2">
           <legend className="sr-only">When</legend>
           <Row label="Starts">
-            <input type="date" required aria-label="Start date" value={date(e.start)} onChange={(ev) => ev.target.value && setStart(ev.target.value + e.start.slice(10))} className={cx(FIELD, 'font-mono')} />
+            <input type="date" required aria-label="Start date" value={date(e.start)} onChange={value((d) => d && setStart((x) => d + x.start.slice(10)))} className={cx(FIELD, 'font-mono')} />
             {!e.allDay && (
-              <input type="time" required step={900} aria-label="Start time" value={time(e.start)} onChange={(ev) => ev.target.value && setStart(date(e.start) + 'T' + ev.target.value)} className={cx(FIELD, 'font-mono')} />
+              <input type="time" required step={900} aria-label="Start time" value={time(e.start)} onChange={value((t) => t && setStart((x) => date(x.start) + 'T' + t))} className={cx(FIELD, 'font-mono')} />
             )}
           </Row>
           <Row label="Ends">
@@ -158,7 +165,7 @@ export function EventEditor({ draft, isNew, onSave, onClose }: { draft: CalEvent
               required
               aria-label="End date"
               value={date(e.end)}
-              onChange={(ev) => ev.target.value && set({ end: ev.target.value + e.end.slice(10) })}
+              onChange={value((d) => d && set((x) => ({ end: d + x.end.slice(10) })))}
               className={cx(FIELD, 'font-mono', bad && '!border-alert')}
             />
             {!e.allDay && (
@@ -168,7 +175,7 @@ export function EventEditor({ draft, isNew, onSave, onClose }: { draft: CalEvent
                 step={900}
                 aria-label="End time"
                 value={time(e.end)}
-                onChange={(ev) => ev.target.value && set({ end: date(e.end) + 'T' + ev.target.value })}
+                onChange={value((t) => t && set((x) => ({ end: date(x.end) + 'T' + t })))}
                 className={cx(FIELD, 'font-mono', bad && '!border-alert')}
               />
             )}
@@ -188,7 +195,7 @@ export function EventEditor({ draft, isNew, onSave, onClose }: { draft: CalEvent
             <select
               aria-label="Repeat"
               value={days.length ? 'weekly' : 'none'}
-              onChange={(ev) => set({ repeat: ev.target.value === 'weekly' ? { days: [weekday(e.start)] } : undefined })}
+              onChange={value((v) => set((x) => ({ repeat: v === 'weekly' ? { days: [weekday(x.start)] } : undefined })))}
               className={cx(FIELD, 'pr-7')}
             >
               <option value="none">Does not repeat</option>
@@ -208,10 +215,13 @@ export function EventEditor({ draft, isNew, onSave, onClose }: { draft: CalEvent
                         aria-pressed={on}
                         aria-label={NAME[d]}
                         title={NAME[d]}
-                        onClick={() => {
-                          const next = on ? days.filter((x) => x !== d) : [...days, d].sort()
-                          if (next.length) set({ repeat: { ...e.repeat, days: next } })
-                        }}
+                        onClick={() =>
+                          set((x) => {
+                            const cur = x.repeat?.days ?? []
+                            const next = cur.includes(d) ? cur.filter((y) => y !== d) : [...cur, d].sort()
+                            return next.length ? { repeat: { ...x.repeat, days: next } } : {}
+                          })
+                        }
                         className={cx(
                           'grid size-8 place-items-center rounded-md border font-mono text-[12px] font-semibold transition-colors',
                           on ? 'border-accent bg-accent-soft text-accent' : 'border-line-strong bg-panel text-muted hover:bg-hover',
@@ -229,7 +239,7 @@ export function EventEditor({ draft, isNew, onSave, onClose }: { draft: CalEvent
                   aria-label="Repeat until (optional)"
                   value={e.repeat?.until ?? ''}
                   min={date(e.start)}
-                  onChange={(ev) => set({ repeat: { days, until: ev.target.value || undefined } })}
+                  onChange={value((v) => set((x) => ({ repeat: { days: x.repeat?.days ?? [], until: v || undefined } })))}
                   className={cx(FIELD, 'font-mono')}
                 />
                 <span className="text-[12.5px] text-faint">{e.repeat?.until ? '' : 'No end date'}</span>
